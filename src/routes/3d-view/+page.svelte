@@ -3,11 +3,13 @@
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-    import { onValue, ref, update, get } from 'firebase/database';
+    import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+    import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+    import { onValue, ref, get, set } from 'firebase/database';
     import { db } from '$lib/firebase';
     import { goto } from '$app/navigation';
 
-    // Définition des interfaces
+    // Interfaces
     interface SensorData {
         id: string;
         roomName: string;
@@ -19,13 +21,23 @@
         position?: { x: number; y: number; z: number };
     }
 
-    // Variables Three.js
+    interface CameraPosition {
+        position: { x: number; y: number; z: number; };
+        target: { x: number; y: number; z: number; };
+    }
+
+    // Variables Three.js et état
     let canvas: HTMLCanvasElement;
     let scene: THREE.Scene;
     let camera: THREE.PerspectiveCamera;
     let renderer: THREE.WebGLRenderer;
     let controls: OrbitControls;
+    let font: THREE.Font | null = null;
     let currentModel: THREE.Object3D | null = null;
+    let placementPlane: THREE.Mesh;
+    let mousePosition = new THREE.Vector3();
+    let raycaster = new THREE.Raycaster();
+    let clickMouse = new THREE.Vector2();
 
     // État de l'application
     let currentFloor = 0;
@@ -36,12 +48,10 @@
     let selectedSensor: string | null = null;
     let selectedSensorInfo: SensorData | null = null;
     let showSensorInfo = false;
-
-    // Variables de positionnement
-    let placementPlane: THREE.Mesh;
-    let mousePosition = new THREE.Vector3();
-    let raycaster = new THREE.Raycaster();
-    let clickMouse = new THREE.Vector2();
+    let showControls = true;
+    let isPlacingMode = false;
+    let touchTimeout: number | null = null;
+    let lastTapTime = 0;
 
     // Configuration des étages
     const floors = [
@@ -54,7 +64,45 @@
         { id: 5, name: '5ème étage', model: 'src/models/Workshop etage5.glb' }
     ];
 
-    // Initialisation de la scène Three.js
+    // Fonctions de gestion de la caméra
+    function saveCameraPosition() {
+        const position = {
+            position: {
+                x: camera.position.x,
+                y: camera.position.y,
+                z: camera.position.z
+            },
+            target: {
+                x: controls.target.x,
+                y: controls.target.y,
+                z: controls.target.z
+            }
+        };
+        localStorage.setItem(`cameraPosition_${currentFloor}`, JSON.stringify(position));
+    }
+
+    function loadCameraPosition(): CameraPosition | null {
+        const savedPosition = localStorage.getItem(`cameraPosition_${currentFloor}`);
+        return savedPosition ? JSON.parse(savedPosition) : null;
+    }
+
+    // Chargement de la police
+    async function loadFont() {
+        return new Promise<void>((resolve, reject) => {
+            const loader = new FontLoader();
+            loader.load(
+                'https://threejs.org/examples/fonts/helvetiker_regular.typeface.json',
+                (loadedFont) => {
+                    font = loadedFont;
+                    resolve();
+                },
+                undefined,
+                reject
+            );
+        });
+    }
+
+    // Initialisation de la scène
     function initScene() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0xf5f5f5);
@@ -64,7 +112,8 @@
         
         renderer = new THREE.WebGLRenderer({ 
             canvas,
-            antialias: true
+            antialias: true,
+            alpha: true
         });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -73,14 +122,11 @@
 
         setupLighting();
         setupControls();
-
+        
         const grid = new THREE.GridHelper(20, 20, 0x888888, 0x888888);
         scene.add(grid);
-
-        animate();
     }
 
-    // Configuration de l'éclairage
     function setupLighting() {
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
         scene.add(ambientLight);
@@ -115,7 +161,6 @@
         light.shadow.camera.bottom = -10;
     }
 
-    // Configuration des contrôles
     function setupControls() {
         controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
@@ -124,11 +169,104 @@
         controls.minDistance = 5;
         controls.maxDistance = 20;
         controls.maxPolarAngle = Math.PI / 2;
+        controls.addEventListener('end', saveCameraPosition);
     }
 
-    // Animation
+    function createSensorIndicator(data: SensorData) {
+        const group = new THREE.Group();
+        
+        // Sphère du capteur
+        const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+        const material = new THREE.MeshPhongMaterial({
+            color: getSensorColor(data.temperature, data.co2),
+            emissive: getSensorColor(data.temperature, data.co2),
+            emissiveIntensity: 0.5,
+            transparent: true,
+            opacity: 0.8
+        });
+        const indicator = new THREE.Mesh(geometry, material);
+        group.add(indicator);
+        
+        // Halo lumineux
+        const glowGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: getSensorColor(data.temperature, data.co2),
+            transparent: true,
+            opacity: 0.2
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        group.add(glow);
+        
+        // Point lumineux
+        const pointLight = new THREE.PointLight(
+            getSensorColor(data.temperature, data.co2),
+            1,
+            2
+        );
+        pointLight.position.set(0, 0.2, 0);
+        group.add(pointLight);
+        
+        // Ajouter le texte 3D
+        if (font) {
+            const textGeometry = new TextGeometry(data.roomName, {
+                font: font,
+                size: 0.3,
+                height: 0.05,
+                curveSegments: 12,
+                bevelEnabled: false
+            });
+            
+            // Centrer le texte
+            textGeometry.computeBoundingBox();
+            const textWidth = textGeometry.boundingBox!.max.x - textGeometry.boundingBox!.min.x;
+            
+            const textMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
+            const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+            
+            // Positionner le texte au-dessus du capteur
+            textMesh.position.set(-textWidth/2, 1.2, 0);
+            
+            // Faire face à la caméra
+            const textGroup = new THREE.Group();
+            textGroup.add(textMesh);
+            group.add(textGroup);
+            
+            // Mettre à jour la rotation du texte pour qu'il fasse face à la caméra
+            group.userData.animate = () => {
+                textGroup.quaternion.copy(camera.quaternion);
+                indicator.scale.copy(initialScale).multiplyScalar(1 + Math.sin(Date.now() * 0.003) * 0.2);
+                glow.scale.copy(initialScale).multiplyScalar(1.2 + Math.sin(Date.now() * 0.003) * 0.3);
+            };
+        }
+
+        // Animation de base du capteur
+        const initialScale = indicator.scale.clone();
+        
+        // Positionner le capteur plus bas
+        group.position.y = 0.1;
+        
+        return group;
+    }
+
+    // Plan de placement
+    function initPlacementPlane() {
+        const geometry = new THREE.PlaneGeometry(100, 100);
+        const material = new THREE.MeshBasicMaterial({
+            color: 0x808080,
+            transparent: true,
+            opacity: 0.0,
+            side: THREE.DoubleSide
+        });
+        placementPlane = new THREE.Mesh(geometry, material);
+        placementPlane.rotation.x = -Math.PI / 2;
+        placementPlane.position.y = 0;
+        placementPlane.name = 'placementPlane';
+        scene.add(placementPlane);
+    }
+
     function animate() {
         requestAnimationFrame(animate);
+        controls.update();
         
         scene.children
             .filter(child => child.userData.isSensor)
@@ -138,126 +276,7 @@
                 }
             });
         
-        controls.update();
         renderer.render(scene, camera);
-    }
-
-    // Gestion du redimensionnement
-    function handleResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    // Initialisation du plan de placement
-    function initPlacementPlane() {
-        const geometry = new THREE.PlaneGeometry(20, 20);
-        const material = new THREE.MeshBasicMaterial({
-            color: 0xffff00,
-            transparent: true,
-            opacity: 0.2,
-            side: THREE.DoubleSide,
-            visible: false
-        });
-        placementPlane = new THREE.Mesh(geometry, material);
-        placementPlane.rotation.x = -Math.PI / 2;
-        scene.add(placementPlane);
-    }
-
-    // Gestion des modèles 3D
-    function loadFloorModel(floorId: number) {
-        const floor = floors.find(f => f.id === floorId);
-        if (!floor) return;
-
-        loading = true;
-        error = '';
-
-        cleanupCurrentModel();
-
-        const loader = new GLTFLoader();
-        loader.load(
-            floor.model,
-            (gltf) => {
-                setupNewModel(gltf);
-                loading = false;
-            },
-            undefined,
-            (err) => {
-                error = `Erreur de chargement: ${err.message}`;
-                loading = false;
-            }
-        );
-    }
-
-    function cleanupCurrentModel() {
-        if (currentModel) {
-            scene.remove(currentModel);
-            currentModel.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) {
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(material => material.dispose());
-                        } else {
-                            child.material.dispose();
-                        }
-                    }
-                }
-            });
-            currentModel = null;
-        }
-    }
-
-    function setupNewModel(gltf: any) {
-        currentModel = gltf.scene;
-        
-        currentModel.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-                child.material = new THREE.MeshPhongMaterial({
-                    color: 0x808080,
-                    shininess: 30,
-                    flatShading: false,
-                    side: THREE.DoubleSide,
-                });
-                child.castShadow = true;
-                child.receiveShadow = true;
-            }
-        });
-
-        scene.add(currentModel);
-
-        const box = new THREE.Box3().setFromObject(currentModel);
-        const center = box.getCenter(new THREE.Vector3());
-        controls.target.copy(center);
-        camera.lookAt(center);
-
-        updateSensorVisuals();
-    }
-
-    // Gestion des capteurs
-    function createSensorIndicator(data: SensorData) {
-        const geometry = new THREE.SphereGeometry(0.2, 16, 16);
-        const material = new THREE.MeshPhongMaterial({
-            color: getSensorColor(data.temperature, data.co2),
-            emissive: getSensorColor(data.temperature, data.co2),
-            emissiveIntensity: 0.2
-        });
-        const indicator = new THREE.Mesh(geometry, material);
-        
-        const pointLight = new THREE.PointLight(
-            getSensorColor(data.temperature, data.co2),
-            0.5,
-            1
-        );
-        indicator.add(pointLight);
-        
-        // Animation
-        const initialScale = indicator.scale.clone();
-        indicator.userData.animate = () => {
-            indicator.scale.copy(initialScale).multiplyScalar(1 + Math.sin(Date.now() * 0.003) * 0.1);
-        };
-        
-        return indicator;
     }
 
     function getSensorColor(temperature: number, co2: number): number {
@@ -267,29 +286,7 @@
         return 0x00ff00;
     }
 
-    function updateSensorVisuals() {
-        scene.children
-            .filter(child => child.userData.isSensor)
-            .forEach(sensor => scene.remove(sensor));
-
-        sensorsData.forEach(data => {
-            if ((!editMode && data.position) || (editMode && data.id === selectedSensor)) {
-                const indicator = createSensorIndicator(data);
-                indicator.userData.isSensor = true;
-                indicator.userData.sensorData = data;
-                
-                if (editMode && !data.position) {
-                    indicator.position.copy(mousePosition);
-                } else if (data.position) {
-                    indicator.position.set(data.position.x, data.position.y, data.position.z);
-                }
-                
-                scene.add(indicator);
-            }
-        });
-    }
-
-    function updateSensorsData(data: any) {
+    async function updateSensorsData(data: any) {
         if (!data) {
             console.log("Pas de données reçues de Firebase");
             sensorsData = [];
@@ -297,31 +294,38 @@
         }
 
         try {
-            sensorsData = Object.entries(data).map(([sensorKey, sensorData]: [string, any]) => {
-                if (!sensorData) return null;
+            // Récupérer les positions séparément
+            const positionsRef = ref(db, 'sensorPositions');
+            const positionsSnapshot = await get(positionsRef);
+            const positions = positionsSnapshot.val() || {};
 
-                const reports = Object.entries(sensorData)
-                    .map(([key, value]) => ({
-                        id: parseInt(key),
-                        ...value as any
-                    }))
-                    .sort((a, b) => b.id - a.id);
+            sensorsData = Object.entries(data)
+                .map(([sensorKey, sensorData]: [string, any]) => {
+                    if (!sensorData) return null;
 
-                const latestData = reports[0];
-                
-                if (!latestData || !latestData.temperature || !latestData.co2 || !latestData.humidity) return null;
+                    const reports = Object.entries(sensorData)
+                        .map(([key, value]) => ({
+                            id: parseInt(key),
+                            ...value as any
+                        }))
+                        .sort((a, b) => b.id - a.id);
 
-                return {
-                    id: sensorKey,
-                    roomName: `Salle ${sensorKey.split('_').slice(1).join('_')}`,
-                    temperature: Number(latestData.temperature),
-                    co2: Number(latestData.co2),
-                    humidity: Number(latestData.humidity),
-                    timestamp: latestData.timestamp || Date.now(),
-                    title: latestData.title || '',
-                    position: latestData.position
-                };
-            }).filter(data => data !== null);
+                    const latestData = reports[0];
+                    
+                    if (!latestData || !latestData.temperature || !latestData.co2 || !latestData.humidity) return null;
+
+                    return {
+                        id: sensorKey,
+                        roomName: `Salle ${sensorKey.split('_').slice(1).join('_')}`,
+                        temperature: Number(latestData.temperature),
+                        co2: Number(latestData.co2),
+                        humidity: Number(latestData.humidity),
+                        timestamp: latestData.timestamp || Date.now(),
+                        title: latestData.title || '',
+                        position: positions[sensorKey]
+                    };
+                })
+                .filter(data => data !== null) as SensorData[];
 
             updateSensorVisuals();
         } catch (error) {
@@ -330,51 +334,36 @@
         }
     }
 
-    // Gestion des interactions
-    function handleSensorClick(event: MouseEvent) {
-        if (editMode) return;
+    function updateSensorVisuals() {
+        // Supprime les anciens capteurs
+        scene.children
+            .filter(child => child.userData.isSensor)
+            .forEach(sensor => scene.remove(sensor));
 
-        const rect = canvas.getBoundingClientRect();
-        clickMouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
-        clickMouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
-
-        raycaster.setFromCamera(clickMouse, camera);
-        const sensors = scene.children.filter(child => child.userData.isSensor);
-        const intersects = raycaster.intersectObjects(sensors);
-
-        if (intersects.length > 0) {
-            const clickedSensor = intersects[0].object;
-            selectedSensorInfo = clickedSensor.userData.sensorData;
-            showSensorInfo = true;
-        } else {
-            selectedSensorInfo = null;
-            showSensorInfo = false;
-        }
-    }
-
-    function onSensorSelect(sensorId: string | null) {
-        selectedSensor = sensorId;
-        updateSensorVisuals();
-    }
-
-    function toggleEditMode() {
-        editMode = !editMode;
-        controls.enabled = !editMode;
-        placementPlane.material.visible = editMode;
-        
-        if (editMode) {
-            canvas.addEventListener('mousemove', onMouseMove);
-            canvas.addEventListener('click', onPlacementClick);
-        } else {
-            canvas.removeEventListener('mousemove', onMouseMove);
-            canvas.removeEventListener('click', onPlacementClick);
-            selectedSensor = null;
-        }
-        
-        updateSensorVisuals();
+        sensorsData.forEach(data => {
+            if (data.position || (isPlacingMode && data.id === selectedSensor)) {
+                const indicator = createSensorIndicator(data);
+                indicator.userData.isSensor = true;
+                indicator.userData.sensorData = data;
+                
+                if (isPlacingMode && !data.position) {
+                    indicator.position.copy(mousePosition);
+                } else if (data.position) {
+                    indicator.position.set(
+                        data.position.x,
+                        0.1,
+                        data.position.z
+                    );
+                }
+                
+                scene.add(indicator);
+            }
+        });
     }
 
     function onMouseMove(event: MouseEvent) {
+        if (!isPlacingMode || !selectedSensor) return;
+        
         const rect = canvas.getBoundingClientRect();
         const x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
         const y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
@@ -384,49 +373,194 @@
         
         if (intersects.length > 0) {
             mousePosition.copy(intersects[0].point);
+            mousePosition.y = 0.1;
             updateSensorVisuals();
         }
     }
 
-    async function onPlacementClick() {
-        if (!selectedSensor || !editMode) return;
+    async function onPlacementClick(event: MouseEvent) {
+        if (!selectedSensor || !isPlacingMode) return;
 
-        const newPosition = {
-            x: mousePosition.x,
-            y: mousePosition.y,
-            z: mousePosition.z
-        };
+        const rect = canvas.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+        const y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
 
-        try {
-            const updates = {};
-            updates[`dcCampus/${selectedSensor}/1/position`] = newPosition;
-            await update(ref(db), updates);
-            
-            sensorsData = sensorsData.map(sensor => {
-                if (sensor.id === selectedSensor) {
-                    return { ...sensor, position: newPosition };
-                }
-                return sensor;
-            });
+        raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+        const intersects = raycaster.intersectObject(placementPlane);
 
-            toggleEditMode();
-        } catch (error) {
-            console.error("Erreur lors de la sauvegarde de la position:", error);
+        if (intersects.length > 0) {
+            const position = intersects[0].point;
+            const newPosition = {
+                x: position.x,
+                y: 0.1,
+                z: position.z
+            };
+
+            try {
+                // Création d'un noeud séparé pour les positions des capteurs
+                const sensorPositionRef = ref(db, `sensorPositions/${selectedSensor}`);
+                await set(sensorPositionRef, newPosition);
+                
+                // Mettre à jour le state local
+                sensorsData = sensorsData.map(sensor => {
+                    if (sensor.id === selectedSensor) {
+                        return { ...sensor, position: newPosition };
+                    }
+                    return sensor;
+                });
+
+                // Mettre à jour les visuels
+                updateSensorVisuals();
+
+                // Reset selection
+                selectedSensor = null;
+
+                // Success notification
+                const toast = document.createElement('div');
+                toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg z-50';
+                toast.textContent = 'Capteur placé avec succès';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+                
+            } catch (error) {
+                console.error("Erreur lors de la sauvegarde de la position:", error);
+                const toast = document.createElement('div');
+                toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg z-50';
+                toast.textContent = 'Erreur lors du placement du capteur';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+            }
         }
     }
 
+    function handleSensorClick(event: MouseEvent) {
+        if (editMode) return;
+
+        const rect = canvas.getBoundingClientRect();
+        clickMouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+        clickMouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+
+        raycaster.setFromCamera(clickMouse, camera);
+        const sensors = scene.children.filter(child => child.userData.isSensor);
+        const intersects = raycaster.intersectObjects(sensors, true);
+
+        if (intersects.length > 0) {
+            const clickedSensor = intersects[0].object.parent;
+            if (clickedSensor) {
+                selectedSensorInfo = clickedSensor.userData.sensorData;
+                showSensorInfo = true;
+            }
+        } else {
+            selectedSensorInfo = null;
+            showSensorInfo = false;
+        }
+    }
+
+    function handleResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function handleTouchStart(event: TouchEvent) {
+        const now = Date.now();
+        const timeDiff = now - lastTapTime;
+        
+        if (timeDiff < 300) {
+            handleDoubleTap(event);
+        }
+        
+        lastTapTime = now;
+        
+        if (event.touches.length === 1) {
+            touchTimeout = window.setTimeout(() => {
+                handleLongPress(event);
+            }, 500);
+        }
+    }
+
+    function handleTouchEnd() {
+        if (touchTimeout) {
+            clearTimeout(touchTimeout);
+            touchTimeout = null;
+        }
+    }
+
+    function handleTouchMove() {
+        if (touchTimeout) {
+            clearTimeout(touchTimeout);
+            touchTimeout = null;
+        }
+    }
+
+    function handleDoubleTap(event: TouchEvent) {
+        if (!editMode) {
+            const touch = event.touches[0];
+            handleSensorClick({
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                preventDefault: () => {}
+            } as MouseEvent);
+        }
+    }
+
+    function handleLongPress(event: TouchEvent) {
+        if (isPlacingMode && selectedSensor) {
+            const touch = event.touches[0];
+            onPlacementClick({
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                preventDefault: () => {}
+            } as MouseEvent);
+        }
+    }
+
+    function togglePlacementMode() {
+        isPlacingMode = !isPlacingMode;
+        editMode = isPlacingMode;
+        
+        if (isPlacingMode) {
+            canvas.addEventListener('click', onPlacementClick);
+            canvas.addEventListener('mousemove', onMouseMove);
+        } else {
+            canvas.removeEventListener('click', onPlacementClick);
+            canvas.removeEventListener('mousemove', onMouseMove);
+            selectedSensor = null;
+        }
+        
+        if (placementPlane) {
+            placementPlane.visible = isPlacingMode;
+        }
+    }
+
+    function onSensorSelect(sensorId: string | null) {
+        selectedSensor = sensorId;
+        updateSensorVisuals();
+    }
+
     function changeFloor(floorId: number) {
+        saveCameraPosition();
         currentFloor = floorId;
         loadFloorModel(floorId);
     }
 
-    // Initialisation au montage du composant
-    onMount(() => {
+    // Initialisation
+    onMount(async () => {
+        try {
+            await loadFont();
+        } catch (error) {
+            console.error("Erreur lors du chargement de la police:", error);
+        }
+        
         initScene();
         initPlacementPlane();
         loadFloorModel(currentFloor);
+        animate();
 
         canvas.addEventListener('click', handleSensorClick);
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: true });
+        canvas.addEventListener('touchend', handleTouchEnd, { passive: true });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: true });
         window.addEventListener('resize', handleResize);
 
         const sensorsRef = ref(db, 'dcCampus');
@@ -438,44 +572,150 @@
         });
 
         return () => {
+            saveCameraPosition();
             unsubscribe();
-            window.removeEventListener('resize', handleResize);
-            if (renderer) renderer.dispose();
-            if (controls) controls.dispose();
-            canvas.removeEventListener('mousemove', onMouseMove);
-            canvas.removeEventListener('click', onPlacementClick);
+            
             canvas.removeEventListener('click', handleSensorClick);
+            if (isPlacingMode) {
+                canvas.removeEventListener('click', onPlacementClick);
+                canvas.removeEventListener('mousemove', onMouseMove);
+            }
+            canvas.removeEventListener('touchstart', handleTouchStart);
+            canvas.removeEventListener('touchend', handleTouchEnd);
+            canvas.removeEventListener('touchmove', handleTouchMove);
+            window.removeEventListener('resize', handleResize);
+            
+            if (renderer) {
+                renderer.dispose();
+                renderer.forceContextLoss();
+            }
+            
+            if (controls) {
+                controls.dispose();
+            }
+            
+            scene.traverse((object) => {
+                if (object instanceof THREE.Mesh) {
+                    if (object.geometry) object.geometry.dispose();
+                    if (object.material) {
+                        if (Array.isArray(object.material)) {
+                            object.material.forEach(material => material.dispose());
+                        } else {
+                            object.material.dispose();
+                        }
+                    }
+                }
+            });
+            
+            scene.clear();
         };
     });
-</script>
 
+// Gestion du modèle 3D
+function loadFloorModel(floorId: number) {
+    const floor = floors.find(f => f.id === floorId);
+    if (!floor) return;
+
+    loading = true;
+    error = '';
+
+    if (currentModel) {
+        scene.remove(currentModel);
+        currentModel.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(material => material.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            }
+        });
+        currentModel = null;
+    }
+
+    const loader = new GLTFLoader();
+    loader.load(
+        floor.model,
+        (gltf) => {
+            currentModel = gltf.scene;
+            
+            currentModel.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.material = new THREE.MeshPhongMaterial({
+                        color: 0x808080,
+                        shininess: 30,
+                        flatShading: false,
+                        side: THREE.DoubleSide,
+                    });
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+
+            scene.add(currentModel);
+
+            const box = new THREE.Box3().setFromObject(currentModel);
+            const center = box.getCenter(new THREE.Vector3());
+            controls.target.copy(center);
+            camera.lookAt(center);
+
+            const savedPosition = loadCameraPosition();
+            if (savedPosition) {
+                camera.position.set(
+                    savedPosition.position.x,
+                    savedPosition.position.y,
+                    savedPosition.position.z
+                );
+                controls.target.set(
+                    savedPosition.target.x,
+                    savedPosition.target.y,
+                    savedPosition.target.z
+                );
+                controls.update();
+            }
+
+            updateSensorVisuals();
+            loading = false;
+        },
+        undefined,
+        (err) => {
+            error = `Erreur de chargement: ${err.message}`;
+            loading = false;
+        }
+    );
+}
+
+</script>
 <!-- Template -->
 <div class="relative w-full h-screen bg-gray-100">
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 bg-white z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-4 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <button
+                        on:click={() => goto('/')}
+                        class="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                        aria-label="Retour"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900 sm:text-2xl">Vue 3D</h1>
+                        <p class="mt-1 text-sm text-gray-600">{floors[currentFloor + 1]?.name || ''}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
 
-    <div class="absolute top-4 left-4 z-20">
-        <button
-            on:click={() => goto('/')}
-            class="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow-lg hover:bg-gray-50 transition-colors border border-gray-200"
-        >
-            <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                class="h-5 w-5" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-            >
-                <path 
-                    stroke-linecap="round" 
-                    stroke-linejoin="round" 
-                    stroke-width="2" 
-                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
-                />
-            </svg>
-            <span>Accueil</span>
-        </button>
-    </div>
     <!-- Sélecteur d'étage -->
-    <div class="absolute top-24 left-4 z-10 bg-white p-4 rounded-lg shadow-lg">
+    <div class="fixed top-24 left-4 z-10 bg-white p-4 rounded-lg shadow-lg sm:block {showControls ? '' : 'hidden'}">
         <h2 class="text-lg font-bold mb-4">Étages</h2>
         <div class="flex flex-col space-y-2">
             {#each floors as floor}
@@ -492,68 +732,59 @@
         </div>
     </div>
 
-    <!-- Interface de placement des capteurs -->
-    <div class="absolute top-4 right-4 z-10 bg-white p-4 rounded-lg shadow-lg">
-        <h3 class="font-bold mb-2">Placement des capteurs</h3>
-        <div class="space-y-2">
-            <button
-                class="px-4 py-2 rounded-md text-sm font-medium w-full transition-colors
-                    {editMode ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-indigo-600 text-white hover:bg-indigo-700'}"
-                on:click={toggleEditMode}
-            >
-                {editMode ? 'Annuler le placement' : 'Placer un capteur'}
-            </button>
-            
-            {#if editMode}
-                <div class="p-2 bg-yellow-50 rounded-md text-sm text-yellow-800">
-                    Mode placement actif. Sélectionnez une salle puis cliquez sur la position souhaitée.
+    <!-- Interface mobile de placement -->
+    <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-20 w-full max-w-sm px-4
+                {showControls ? 'translate-y-0' : 'translate-y-full'} 
+                transition-transform duration-300 ease-in-out">
+        <div class="bg-white rounded-lg shadow-lg p-4">
+            {#if isPlacingMode}
+                <div class="text-center mb-4">
+                    <p class="text-sm font-medium text-gray-700">
+                        Sélectionnez un capteur puis cliquez sur la position souhaitée
+                    </p>
                 </div>
-                <select
-                    value={selectedSensor}
-                    on:change={(e) => onSensorSelect(e.target.value)}
-                    class="w-full p-2 border rounded-md"
-                    disabled={!editMode}
-                >
-                    <option value={null}>Sélectionnez une salle</option>
-                    {#each sensorsData as sensor}
-                        <option value={sensor.id}>
-                            {sensor.roomName} - {sensor.title}
-                            ({sensor.temperature.toFixed(1)}°C - {sensor.co2.toFixed(0)} ppm)
-                        </option>
-                    {/each}
-                </select>
-
-                {#if selectedSensor}
-                    {#if (sensor = sensorsData.find(s => s.id === selectedSensor))}
-                        <div class="mt-2 p-2 bg-gray-50 rounded-md text-sm space-y-1">
-                            <p class="font-medium">{sensor.roomName}</p>
-                            <p class="text-gray-600">{sensor.title}</p>
-                            <p>Température: {sensor.temperature.toFixed(1)}°C</p>
-                            <p>CO₂: {sensor.co2.toFixed(0)} ppm</p>
-                            <p>Humidité: {sensor.humidity.toFixed(0)}%</p>
-                            <p class="text-xs text-gray-500">
-                                Dernière mise à jour: {new Date(sensor.timestamp).toLocaleString()}
-                            </p>
-                        </div>
-                    {/if}
-                {/if}
             {/if}
+            
+            <div class="space-y-2">
+                <button
+                    class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg 
+                           hover:bg-indigo-700 transition-colors text-sm font-medium"
+                    on:click={togglePlacementMode}
+                >
+                    {isPlacingMode ? 'Terminer le placement' : 'Placer des capteurs'}
+                </button>
+
+                {#if isPlacingMode}
+                    <select
+                        value={selectedSensor}
+                        on:change={(e) => onSensorSelect(e.target.value)}
+                        class="w-full p-2 border rounded-md text-sm"
+                    >
+                        <option value={null}>Sélectionnez une salle</option>
+                        {#each sensorsData.filter(s => !s.position) as sensor}
+                            <option value={sensor.id}>
+                                {sensor.roomName} - {sensor.title}
+                            </option>
+                        {/each}
+                    </select>
+                {/if}
+            </div>
         </div>
     </div>
 
-    <!-- Indicateur de chargement -->
+    <!-- Chargement -->
     {#if loading}
-        <div class="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
+        <div class="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
             <div class="bg-white p-6 rounded-lg shadow-xl text-center">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
-                <p class="mt-2 text-gray-700">Chargement de l'étage en cours...</p>
+                <p class="mt-2 text-gray-700">Chargement de l'étage...</p>
             </div>
         </div>
     {/if}
 
     <!-- Message d'erreur -->
     {#if error}
-        <div class="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
+        <div class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
             <div class="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
                 <svg class="w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
@@ -565,12 +796,12 @@
     {/if}
 
     <!-- Canvas Three.js -->
-    <canvas bind:this={canvas} class="w-full h-full"/>
+    <canvas bind:this={canvas} class="w-full h-full touch-none"/>
 
-    <!-- Fenêtre modale d'information du capteur -->
+    <!-- Modal d'information du capteur -->
     {#if showSensorInfo && selectedSensorInfo}
-        <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 
-                    bg-white p-6 rounded-lg shadow-xl z-50 max-w-md w-full">
+        <div class="fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 
+                    bg-white p-6 rounded-lg shadow-xl z-50 max-w-md w-full mx-4">
             <div class="flex justify-between items-start mb-4">
                 <h3 class="text-lg font-bold">
                     {selectedSensorInfo.roomName}
@@ -621,9 +852,9 @@
         </div>
     {/if}
 
-    <!-- Légende des capteurs -->
-    <div class="absolute bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg">
-        <h3 class="font-bold mb-2">Légende des capteurs</h3>
+    <!-- Légende -->
+    <div class="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg {showControls ? '' : 'hidden'}">
+        <h3 class="font-bold mb-2">Légende</h3>
         <div class="space-y-2">
             <div class="flex items-center">
                 <span class="w-4 h-4 rounded-full bg-red-500 mr-2"></span>
@@ -641,18 +872,6 @@
                 <span class="w-4 h-4 rounded-full bg-green-500 mr-2"></span>
                 <span class="text-sm">Conditions normales</span>
             </div>
-        </div>
-    </div>
-
-    <!-- Statistiques des capteurs -->
-    <div class="absolute bottom-4 left-4 bg-white p-4 rounded-lg shadow-lg">
-        <h3 class="font-bold mb-2">Statistiques de l'étage</h3>
-        <div class="space-y-1 text-sm">
-            <p>Nombre de capteurs : {sensorsData.length}</p>
-            <p>Capteurs en alerte : {sensorsData.filter(s => s.co2 > 1000 || s.temperature > 26 || s.temperature < 18).length}</p>
-            <p>Température moyenne : {(sensorsData.reduce((acc, s) => acc + s.temperature, 0) / Math.max(sensorsData.length, 1)).toFixed(1)}°C</p>
-            <p>CO₂ moyen : {(sensorsData.reduce((acc, s) => acc + s.co2, 0) / Math.max(sensorsData.length, 1)).toFixed(0)} ppm</p>
-            <p>Humidité moyenne : {(sensorsData.reduce((acc, s) => acc + s.humidity, 0) / Math.max(sensorsData.length, 1)).toFixed(0)}%</p>
         </div>
     </div>
 </div>
