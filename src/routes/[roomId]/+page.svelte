@@ -254,6 +254,166 @@
                   </button>
               </header>
 
+              {#if showExportDialog}
+    <Dialog 
+        open={showExportDialog} 
+        onOpenChange={handleDialogOpen}
+    >
+        <div class="p-6">
+            <h2 class="text-xl font-bold mb-4">Exporter les données</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Format d'export</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button
+                            class="p-4 border rounded-lg text-center transition-colors duration-200 
+                                {exportFormat === 'csv' ? 'border-indigo-500 bg-indigo-50' : 'hover:bg-gray-50'}"
+                            on:click={() => exportFormat = 'csv'}
+                        >
+                            CSV
+                        </button>
+                        <button
+                            class="p-4 border rounded-lg text-center transition-colors duration-200 
+                                {exportFormat === 'pdf' ? 'border-indigo-500 bg-indigo-50' : 'hover:bg-gray-50'}"
+                            on:click={() => exportFormat = 'pdf'}
+                        >
+                            PDF
+                        </button>
+                        <button
+                            class="p-4 border rounded-lg text-center transition-colors duration-200 
+                                {exportFormat === 'xml' ? 'border-indigo-500 bg-indigo-50' : 'hover:bg-gray-50'}"
+                            on:click={() => exportFormat = 'xml'}
+                        >
+                            XML
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <button
+                        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                        on:click={() => showExportDialog = false}
+                    >
+                        Annuler
+                    </button>
+                    <button
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200"
+                        on:click={() => {
+                            try {
+                                if (exportFormat === 'csv') {
+                                    // Export CSV
+                                    const headers = ['Timestamp', 'CO2 (ppm)', 'Température (°C)', 'Humidité (%)', 'Statut'];
+                                    const rows = filteredData.map(row => [
+                                        new Date(row.timestamp).toISOString(),
+                                        row.co2.toFixed(1),
+                                        row.temperature.toFixed(1),
+                                        row.humidity.toFixed(1),
+                                        generateAlerts(row).length > 0 ? 'Alerte' : 'Normal'
+                                    ]);
+                                    
+                                    const csvContent = [
+                                        headers.join(','),
+                                        ...rows.map(row => row.join(','))
+                                    ].join('\n');
+
+                                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                                    const url = URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = `${currentRoom?.name}_${new Date().toISOString().slice(0,10)}.csv`;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    URL.revokeObjectURL(url);
+                                } 
+                                else if (exportFormat === 'xml') {
+                                    // Export XML
+                                    let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
+                                    xmlContent += `<mesures salle="${currentRoom?.name}">\n`;
+                                    
+                                    filteredData.forEach(row => {
+                                        xmlContent += '  <mesure>\n';
+                                        xmlContent += `    <timestamp>${new Date(row.timestamp).toISOString()}</timestamp>\n`;
+                                        xmlContent += `    <co2 unite="ppm">${row.co2.toFixed(1)}</co2>\n`;
+                                        xmlContent += `    <temperature unite="celsius">${row.temperature.toFixed(1)}</temperature>\n`;
+                                        xmlContent += `    <humidite unite="pourcent">${row.humidity.toFixed(1)}</humidite>\n`;
+                                        xmlContent += `    <statut>${generateAlerts(row).length > 0 ? 'alerte' : 'normal'}</statut>\n`;
+                                        xmlContent += '  </mesure>\n';
+                                    });
+                                    
+                                    xmlContent += '</mesures>';
+
+                                    const blob = new Blob([xmlContent], { type: 'application/xml;charset=utf-8;' });
+                                    const url = URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = `${currentRoom?.name}_${new Date().toISOString().slice(0,10)}.xml`;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    URL.revokeObjectURL(url);
+                                }
+                                else if (exportFormat === 'pdf') {
+                                    // Export PDF
+                                    const doc = new jsPDF();
+                                    
+                                    // En-tête
+                                    doc.setFontSize(20);
+                                    doc.text(`Rapport - ${currentRoom?.name}`, 20, 20);
+                                    
+                                    // Informations générales
+                                    doc.setFontSize(12);
+                                    const startDate = formatDate(filteredData[filteredData.length - 1].timestamp);
+                                    const endDate = formatDate(filteredData[0].timestamp);
+                                    doc.text(`Période : ${startDate} - ${endDate}`, 20, 40);
+                                    
+                                    // Tableau des statistiques
+                                    const stats = {
+                                        co2: calculateStats(filteredData, 'co2'),
+                                        temperature: calculateStats(filteredData, 'temperature'),
+                                        humidity: calculateStats(filteredData, 'humidity')
+                                    };
+
+                                    doc.autoTable({
+                                        head: [['Métrique', 'Minimum', 'Maximum', 'Moyenne']],
+                                        body: [
+                                            ['CO2 (ppm)', stats.co2.min, stats.co2.max, stats.co2.avg],
+                                            ['Température (°C)', stats.temperature.min, stats.temperature.max, stats.temperature.avg],
+                                            ['Humidité (%)', stats.humidity.min, stats.humidity.max, stats.humidity.avg]
+                                        ],
+                                        startY: 50
+                                    });
+                                    
+                                    // Graphique si disponible
+                                    if (chart) {
+                                        const canvas = chart.canvas;
+                                        if (canvas) {
+                                            const imageData = canvas.toDataURL('image/png');
+                                            doc.addPage();
+                                            doc.text('Graphique', 20, 20);
+                                            doc.addImage(imageData, 'PNG', 20, 30, 170, 80);
+                                        }
+                                    }
+                                    
+                                    doc.save(`${currentRoom?.name}_${new Date().toISOString().slice(0,10)}.pdf`);
+                                }
+                            } catch (error) {
+                                console.error('Erreur lors de l\'export:', error);
+                                // Ici vous pourriez ajouter une notification d'erreur
+                            }
+                            
+                            showExportDialog = false;
+                        }}
+                    >
+                        Exporter
+                    </button>
+                </div>
+            </div>
+        </div>
+    </Dialog>
+{/if}
+
               <!-- Filtres de visualisation -->
               <div class="mb-8 space-y-6 bg-white rounded-lg shadow-sm p-6">
                 <div class="space-y-3">
@@ -443,167 +603,8 @@
   {/if}
 </div>
 
-<!-- Dialog d'export -->
-<!-- Dialog d'export -->
-{#if showExportDialog}
-    <Dialog 
-        open={showExportDialog} 
-        onOpenChange={handleDialogOpen}
-    >
-        <div class="p-6">
-            <h2 class="text-xl font-bold mb-4">Exporter les données</h2>
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Format d'export</label>
-                    <div class="grid grid-cols-3 gap-2">
-                        <button
-                            class="p-4 border rounded-lg text-center transition-colors duration-200 
-                                {exportFormat === 'csv' ? 'border-indigo-500 bg-indigo-50' : 'hover:bg-gray-50'}"
-                            on:click={() => exportFormat = 'csv'}
-                        >
-                            CSV
-                        </button>
-                        <button
-                            class="p-4 border rounded-lg text-center transition-colors duration-200 
-                                {exportFormat === 'pdf' ? 'border-indigo-500 bg-indigo-50' : 'hover:bg-gray-50'}"
-                            on:click={() => exportFormat = 'pdf'}
-                        >
-                            PDF
-                        </button>
-                        <button
-                            class="p-4 border rounded-lg text-center transition-colors duration-200 
-                                {exportFormat === 'xml' ? 'border-indigo-500 bg-indigo-50' : 'hover:bg-gray-50'}"
-                            on:click={() => exportFormat = 'xml'}
-                        >
-                            XML
-                        </button>
-                    </div>
-                </div>
 
-                <div class="flex justify-end gap-2">
-                    <button
-                        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors duration-200"
-                        on:click={() => showExportDialog = false}
-                    >
-                        Annuler
-                    </button>
-                    <button
-                        class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200"
-                        on:click={() => {
-                            try {
-                                if (exportFormat === 'csv') {
-                                    // Export CSV
-                                    const headers = ['Timestamp', 'CO2 (ppm)', 'Température (°C)', 'Humidité (%)', 'Statut'];
-                                    const rows = filteredData.map(row => [
-                                        new Date(row.timestamp).toISOString(),
-                                        row.co2.toFixed(1),
-                                        row.temperature.toFixed(1),
-                                        row.humidity.toFixed(1),
-                                        generateAlerts(row).length > 0 ? 'Alerte' : 'Normal'
-                                    ]);
-                                    
-                                    const csvContent = [
-                                        headers.join(','),
-                                        ...rows.map(row => row.join(','))
-                                    ].join('\n');
 
-                                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                                    const url = URL.createObjectURL(blob);
-                                    const link = document.createElement('a');
-                                    link.href = url;
-                                    link.download = `${currentRoom?.name}_${new Date().toISOString().slice(0,10)}.csv`;
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                    URL.revokeObjectURL(url);
-                                } 
-                                else if (exportFormat === 'xml') {
-                                    // Export XML
-                                    let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
-                                    xmlContent += `<mesures salle="${currentRoom?.name}">\n`;
-                                    
-                                    filteredData.forEach(row => {
-                                        xmlContent += '  <mesure>\n';
-                                        xmlContent += `    <timestamp>${new Date(row.timestamp).toISOString()}</timestamp>\n`;
-                                        xmlContent += `    <co2 unite="ppm">${row.co2.toFixed(1)}</co2>\n`;
-                                        xmlContent += `    <temperature unite="celsius">${row.temperature.toFixed(1)}</temperature>\n`;
-                                        xmlContent += `    <humidite unite="pourcent">${row.humidity.toFixed(1)}</humidite>\n`;
-                                        xmlContent += `    <statut>${generateAlerts(row).length > 0 ? 'alerte' : 'normal'}</statut>\n`;
-                                        xmlContent += '  </mesure>\n';
-                                    });
-                                    
-                                    xmlContent += '</mesures>';
-
-                                    const blob = new Blob([xmlContent], { type: 'application/xml;charset=utf-8;' });
-                                    const url = URL.createObjectURL(blob);
-                                    const link = document.createElement('a');
-                                    link.href = url;
-                                    link.download = `${currentRoom?.name}_${new Date().toISOString().slice(0,10)}.xml`;
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                    URL.revokeObjectURL(url);
-                                }
-                                else if (exportFormat === 'pdf') {
-                                    // Export PDF
-                                    const doc = new jsPDF();
-                                    
-                                    // En-tête
-                                    doc.setFontSize(20);
-                                    doc.text(`Rapport - ${currentRoom?.name}`, 20, 20);
-                                    
-                                    // Informations générales
-                                    doc.setFontSize(12);
-                                    const startDate = formatDate(filteredData[filteredData.length - 1].timestamp);
-                                    const endDate = formatDate(filteredData[0].timestamp);
-                                    doc.text(`Période : ${startDate} - ${endDate}`, 20, 40);
-                                    
-                                    // Tableau des statistiques
-                                    const stats = {
-                                        co2: calculateStats(filteredData, 'co2'),
-                                        temperature: calculateStats(filteredData, 'temperature'),
-                                        humidity: calculateStats(filteredData, 'humidity')
-                                    };
-
-                                    doc.autoTable({
-                                        head: [['Métrique', 'Minimum', 'Maximum', 'Moyenne']],
-                                        body: [
-                                            ['CO2 (ppm)', stats.co2.min, stats.co2.max, stats.co2.avg],
-                                            ['Température (°C)', stats.temperature.min, stats.temperature.max, stats.temperature.avg],
-                                            ['Humidité (%)', stats.humidity.min, stats.humidity.max, stats.humidity.avg]
-                                        ],
-                                        startY: 50
-                                    });
-                                    
-                                    // Graphique si disponible
-                                    if (chart) {
-                                        const canvas = chart.canvas;
-                                        if (canvas) {
-                                            const imageData = canvas.toDataURL('image/png');
-                                            doc.addPage();
-                                            doc.text('Graphique', 20, 20);
-                                            doc.addImage(imageData, 'PNG', 20, 30, 170, 80);
-                                        }
-                                    }
-                                    
-                                    doc.save(`${currentRoom?.name}_${new Date().toISOString().slice(0,10)}.pdf`);
-                                }
-                            } catch (error) {
-                                console.error('Erreur lors de l\'export:', error);
-                                // Ici vous pourriez ajouter une notification d'erreur
-                            }
-                            
-                            showExportDialog = false;
-                        }}
-                    >
-                        Exporter
-                    </button>
-                </div>
-            </div>
-        </div>
-    </Dialog>
-{/if}
 <style>
 :global(body) {
 @apply bg-gray-50;
