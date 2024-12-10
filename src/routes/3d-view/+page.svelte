@@ -434,27 +434,68 @@
     }
 
     function handleSensorClick(event: MouseEvent) {
-        if (editMode) return;
+    const rect = canvas.getBoundingClientRect();
+    clickMouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+    clickMouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
 
-        const rect = canvas.getBoundingClientRect();
-        clickMouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
-        clickMouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+    raycaster.setFromCamera(clickMouse, camera);
+    const sensors = scene.children.filter(child => child.userData.isSensor);
+    const intersects = raycaster.intersectObjects(sensors, true);
 
-        raycaster.setFromCamera(clickMouse, camera);
-        const sensors = scene.children.filter(child => child.userData.isSensor);
-        const intersects = raycaster.intersectObjects(sensors, true);
-
-        if (intersects.length > 0) {
-            const clickedSensor = intersects[0].object.parent;
-            if (clickedSensor) {
+    if (intersects.length > 0) {
+        const clickedSensor = intersects[0].object.parent;
+        if (clickedSensor) {
+            if (editMode) {
+                // En mode édition, on retire le capteur
+                removeSensor(clickedSensor.userData.sensorData);
+            } else {
+                // En mode normal, on affiche les infos
                 selectedSensorInfo = clickedSensor.userData.sensorData;
                 showSensorInfo = true;
             }
-        } else {
-            selectedSensorInfo = null;
-            showSensorInfo = false;
         }
+    } else {
+        selectedSensorInfo = null;
+        showSensorInfo = false;
     }
+}
+
+async function removeSensor(sensorData: SensorData) {
+    if (!sensorData || !sensorData.id) return;
+
+    try {
+        // Supprimer la position dans Firebase
+        const sensorPositionRef = ref(db, `sensorPositions/${sensorData.id}`);
+        await set(sensorPositionRef, null);
+
+        // Mettre à jour le state local
+        sensorsData = sensorsData.map(sensor => {
+            if (sensor.id === sensorData.id) {
+                return { ...sensor, position: undefined };
+            }
+            return sensor;
+        });
+
+        // Mettre à jour les visuels
+        updateSensorVisuals();
+
+        // Notification de succès
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg z-50';
+        toast.textContent = 'Capteur retiré avec succès';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+        
+    } catch (error) {
+        console.error("Erreur lors du retrait du capteur:", error);
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg z-50';
+        toast.textContent = 'Erreur lors du retrait du capteur';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+    }
+}
+
 
     function handleResize() {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -516,22 +557,22 @@
     }
 
     function togglePlacementMode() {
-        isPlacingMode = !isPlacingMode;
-        editMode = isPlacingMode;
-        
-        if (isPlacingMode) {
-            canvas.addEventListener('click', onPlacementClick);
-            canvas.addEventListener('mousemove', onMouseMove);
-        } else {
-            canvas.removeEventListener('click', onPlacementClick);
-            canvas.removeEventListener('mousemove', onMouseMove);
-            selectedSensor = null;
-        }
-        
-        if (placementPlane) {
-            placementPlane.visible = isPlacingMode;
-        }
+    isPlacingMode = !isPlacingMode;
+    editMode = isPlacingMode;
+    
+    if (isPlacingMode) {
+        canvas.addEventListener('click', onPlacementClick);
+        canvas.addEventListener('mousemove', onMouseMove);
+    } else {
+        canvas.removeEventListener('click', onPlacementClick);
+        canvas.removeEventListener('mousemove', onMouseMove);
+        selectedSensor = null;
     }
+    
+    if (placementPlane) {
+        placementPlane.visible = isPlacingMode;
+    }
+}
 
     function onSensorSelect(sensorId: string | null) {
         selectedSensor = sensorId;
