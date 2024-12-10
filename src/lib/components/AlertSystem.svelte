@@ -1,139 +1,87 @@
 <script lang="ts">
-    import { fade, slide } from 'svelte/transition';
+    interface Alert {
+        id: string;
+        type: 'co2' | 'temperature' | 'humidity';
+        value: number;
+        threshold: [number, number];
+        timestamp: number;
+        location: string;
+        severity: 'warning' | 'critical';
+        isStale?: boolean;
+    }
     
-    type Alert = {
-      id: string;
-      type: 'co2' | 'temperature' | 'humidity';
-      value: number;
-      threshold: [number, number];
-      timestamp: number;
-      location: string;
-      severity: 'warning' | 'critical';
-      isStale?: boolean;
-    };
-  
-    export let alerts: Alert[] = [];
+    export let alerts: Alert[];
     
-    // Regroupe les alertes par type pour un affichage organisé
-    $: groupedAlerts = alerts.reduce((acc, alert) => {
-      if (!acc[alert.type]) acc[alert.type] = [];
-      acc[alert.type].push(alert);
-      return acc;
-    }, {} as Record<string, Alert[]>);
+    function getSeverityClass(type: string, value: number, threshold: [number, number]): string {
+        if (type === 'co2' && value > threshold[1]) return 'bg-red-50';
+        if (type === 'temperature' && (value < threshold[0] || value > threshold[1])) return 'bg-yellow-50';
+        return 'bg-blue-50';
+    }
     
-    // Configuration des icônes et informations pour chaque type d'alerte
-    const alertConfig = {
-      co2: {
-        icon: '💨',
-        title: 'CO2',
-        color: 'red',
-      },
-      temperature: {
-        icon: '🌡️',
-        title: 'Température',
-        color: 'orange',
-      },
-      humidity: {
-        icon: '💧',
-        title: 'Humidité',
-        color: 'blue',
-      },
-    };
+    function getIcon(type: string): string {
+        switch (type) {
+            case 'co2':
+                return '❄️';
+            case 'temperature':
+                return '🌡️';
+            case 'humidity':
+                return '💧';
+            default:
+                return '⚠️';
+        }
+    }
     
-    let isExpanded = true;
-    let selectedType: string | null = null;
-    
-    // Formate l'heure pour l'affichage
     function formatTime(timestamp: number): string {
-      return new Date(timestamp).toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+        return new Date(timestamp).toLocaleTimeString('fr-FR', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     }
+    </script>
     
-    // Détermine les classes CSS en fonction de la sévérité et de la fraîcheur de l'alerte
-    function getAlertClass(alert: Alert): string {
-      const severityClass = alert.severity === 'critical' 
-        ? 'bg-red-100 border-red-500' 
-        : 'bg-yellow-100 border-yellow-500';
-      
-      const staleClass = alert.isStale ? 'opacity-50' : '';
-      
-      return `p-4 hover:bg-gray-50 ${severityClass} border-l-4 ${staleClass}`;
-    }
-  </script>
-  
-  <div class="fixed bottom-4 right-4 w-96 z-50">
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-      <!-- En-tête du panneau d'alertes -->
-      <button 
-        type="button"
-        class="px-4 py-3 bg-gray-50 flex items-center justify-between cursor-pointer w-full"
-        on:click={() => isExpanded = !isExpanded}
-      >
-        <div class="flex items-center space-x-2">
-          <span class="text-red-500">⚠️</span>
-          <h3 class="font-medium">
-            Alertes actives ({alerts.length})
-          </h3>
-        </div>
-        <span class="text-gray-500 hover:text-gray-700">
-          {isExpanded ? '▼' : '▲'}
-        </span>
-      </button>
-  
-      <!-- Corps du panneau d'alertes -->
-      {#if isExpanded}
-        <div transition:slide class="max-h-96 overflow-y-auto">
-          <!-- Filtres par type d'alerte -->
-          <div class="flex px-4 py-2 gap-2 border-b">
-            {#each Object.keys(alertConfig) as type}
-              <button
-                class="px-3 py-1 rounded-full text-sm {selectedType === type ? 'bg-blue-500 text-white' : 'bg-gray-100'}"
-                on:click={() => selectedType = selectedType === type ? null : type}
-              >
-                {alertConfig[type].icon} {alertConfig[type].title}
-              </button>
-            {/each}
-          </div>
-  
-          <!-- Liste des alertes -->
-          <div class="divide-y">
-            {#each Object.entries(groupedAlerts) as [type, typeAlerts]}
-              {#if !selectedType || selectedType === type}
-                {#each typeAlerts as alert (alert.id)}
-                  <div
-                    transition:fade
-                    class={getAlertClass(alert)}
-                  >
-                    <div class="flex justify-between items-start">
-                      <div>
-                        <div class="flex items-center">
-                          <span class="mr-2">{alertConfig[type].icon}</span>
-                          <span class="font-medium">
-                            {alert.value} {type === 'temperature' ? '°C' : type === 'humidity' ? '%' : 'ppm'}
-                          </span>
+    <div class="flex flex-col gap-2 p-4">
+        {#if alerts.length > 0}
+            <div class="flex items-center gap-2 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                <span class="font-medium">Alertes actives ({alerts.length})</span>
+            </div>
+    
+            <div class="flex gap-2 mb-4">
+                <span class="flex items-center gap-1 text-sm text-gray-600">
+                    <span>❄️</span> CO2
+                </span>
+                <span class="flex items-center gap-1 text-sm text-gray-600">
+                    <span>🌡️</span> Température
+                </span>
+                <span class="flex items-center gap-1 text-sm text-gray-600">
+                    <span>💧</span> Humidité
+                </span>
+            </div>
+    
+            {#each alerts as alert (alert.id)}
+                <div class="rounded-lg p-4 {getSeverityClass(alert.type, alert.value, alert.threshold)}">
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center gap-2">
+                            <span>{getIcon(alert.type)}</span>
+                            <span class="font-medium">{alert.value.toFixed(5)} {alert.type === 'co2' ? 'ppm' : alert.type === 'temperature' ? '°C' : '%'}</span>
                         </div>
-                        <p class="text-sm text-gray-600 mt-1">
-                          Seuils: {alert.threshold[0]} - {alert.threshold[1]}
-                        </p>
-                      </div>
-                      <span class="text-sm text-gray-500">
-                        {formatTime(alert.timestamp)}
-                      </span>
+                        <span class="text-sm text-gray-500">{formatTime(alert.timestamp)}</span>
                     </div>
-                    <div class="mt-2 text-sm">
-                      <span class="text-gray-600">{alert.location}</span>
-                      {#if alert.isStale}
-                        <span class="text-orange-500 ml-2">(Données anciennes)</span>
-                      {/if}
+                    <div class="text-sm text-gray-600">
+                        Seuils: {alert.threshold[0]} - {alert.threshold[1]}
                     </div>
-                  </div>
-                {/each}
-              {/if}
+                    {#if alert.isStale}
+                        <div class="text-sm text-gray-500 mt-1 italic">
+                            51er envoi (Données anciennes)
+                        </div>
+                    {/if}
+                </div>
             {/each}
-          </div>
-        </div>
-      {/if}
+        {:else}
+            <div class="text-gray-500 text-center py-4">
+                Aucune alerte active
+            </div>
+        {/if}
     </div>
-  </div>
