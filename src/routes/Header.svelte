@@ -1,10 +1,14 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
-    
+    import NotificationBell from '$lib/components/NotificationBell.svelte';
+    import NotificationPanel from '$lib/components/NotificationPanel.svelte';
+        
     export let title: string;
     export let subtitle: string = '';
     export let showBack: boolean = false;
     export let showView3D: boolean = false;
+    
+    let showNotifications = false;
     
     function goBack() {
         history.back();
@@ -17,6 +21,10 @@
     function navigateTo3DView() {
         goto('/3d-view');
     }
+
+    function handleClickOutside() {
+        showNotifications = false;
+    }
 </script>
 
 <div class="fixed inset-x-0 top-0 z-50 flex flex-col">
@@ -24,6 +32,7 @@
     <header class="bg-white shadow-sm">
         <div class="max-w-7xl mx-auto px-4">
             <div class="py-3 flex items-center justify-between">
+                <!-- Partie gauche : Titre et bouton retour -->
                 <div class="flex items-center gap-3">
                     {#if showBack}
                         <button
@@ -44,22 +53,33 @@
                     </div>
                 </div>
                 
-                {#if showView3D}
-                    <button
-                        on:click={navigateTo3DView}
-                        class="flex items-center p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                    >
-                        <span class="hidden sm:inline">Vue 3D</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:ml-2" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
-                {/if}
+                <!-- Partie droite : Notifications et Vue 3D -->
+                <div class="flex items-center gap-4">
+                    <div class="relative" use:clickOutside on:click_outside={handleClickOutside}>
+                        <NotificationBell on:click={() => showNotifications = !showNotifications} />
+                        <NotificationPanel 
+                            show={showNotifications} 
+                            on:close={() => showNotifications = false}
+                        />
+                    </div>
+                    
+                    {#if showView3D}
+                        <button
+                            on:click={navigateTo3DView}
+                            class="flex items-center p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                        >
+                            <span class="hidden sm:inline">Vue 3D</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:ml-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    {/if}
+                </div>
             </div>
         </div>
     </header>
 
-    <!-- Bottom navigation bar - Visible only on mobile -->
+    <!-- Navigation mobile -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden">
         <div class="flex justify-around px-6 py-2">
             <button 
@@ -74,6 +94,25 @@
         </div>
     </nav>
 </div>
+
+<!-- Action clickOutside personnalisée -->
+<script context="module">
+export const clickOutside = (node: HTMLElement) => {
+    const handleClick = (event: MouseEvent) => {
+        if (!node.contains(event.target as Node)) {
+            node.dispatchEvent(new CustomEvent('click_outside'));
+        }
+    };
+
+    document.addEventListener('click', handleClick, true);
+
+    return {
+        destroy() {
+            document.removeEventListener('click', handleClick, true);
+        }
+    };
+};
+</script>
 
 <style>
     /* Ajustement pour le contenu principal */

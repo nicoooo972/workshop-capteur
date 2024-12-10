@@ -12,6 +12,8 @@
   import { jsPDF } from 'jspdf';
   import 'jspdf-autotable';
   import UnifiedAnalysis from '$lib/components/UnifiedAnalysis.svelte';
+  import { notifications } from '$lib/stores/notifications';
+
 
   // Types
   type SensorData = {
@@ -110,21 +112,19 @@
 
       // Alerte CO2
       if (data.co2 < thresholds.co2[0] || data.co2 > thresholds.co2[1]) {
-          alerts.push({
-              id: `co2-${data.timestamp}`,
-              type: 'co2',
-              value: data.co2,
-              threshold: thresholds.co2,
-              timestamp: data.timestamp,
-              location: data.title,
-              severity: data.co2 > thresholds.co2[1] * 1.2 ? 'critical' : 'warning',
-              isStale
-          });
-      }
+        notifications.addNotification({
+            type: 'co2',
+            value: data.co2,
+            threshold: thresholds.co2,
+            timestamp: data.timestamp,
+            location: data.title,
+            severity: data.co2 > thresholds.co2[1] * 1.2 ? 'critical' : 'warning'
+        });
+    }
 
       // Alerte température
       if (data.temperature < thresholds.temperature[0] || data.temperature > thresholds.temperature[1]) {
-          alerts.push({
+        notifications.addNotification({
               id: `temp-${data.timestamp}`,
               type: 'temperature',
               value: data.temperature,
@@ -138,7 +138,7 @@
 
       // Alerte humidité
       if (data.humidity < thresholds.humidity[0] || data.humidity > thresholds.humidity[1]) {
-          alerts.push({
+        notifications.addNotification({
               id: `humid-${data.timestamp}`,
               type: 'humidity',
               value: data.humidity,
