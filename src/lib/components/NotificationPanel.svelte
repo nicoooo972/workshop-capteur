@@ -1,12 +1,12 @@
+<!-- NotificationPanel.svelte -->
 <script lang="ts">
     import { notifications } from '$lib/stores/notifications';
     import { fly } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
 
+    const dispatch = createEventDispatcher();
     
     export let show = false;
-
-    const dispatch = createEventDispatcher();
     
     function formatDate(timestamp: number) {
         return new Date(timestamp).toLocaleString('fr-FR', {

@@ -59,10 +59,10 @@
                     </div>
                 </div>
                 
-                <!-- Partie droite : Notifications, Vue 3D et Profil -->
+                <!-- Partie droite : Notifications & Profil -->
                 <div class="flex items-center gap-4">
                     <!-- Notifications -->
-                    <div class="relative">
+                    <div class="relative" use:clickOutside on:click_outside={handleClickOutside}>
                         <NotificationBell on:click={() => showNotifications = !showNotifications} />
                         <NotificationPanel 
                             show={showNotifications} 
@@ -70,13 +70,14 @@
                         />
                     </div>
                     
+                    <!-- Bouton 3D - visible seulement sur desktop -->
                     {#if showView3D}
                         <button
                             on:click={navigateTo3DView}
-                            class="flex items-center p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                            class="hidden md:flex items-center p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                         >
-                            <span class="hidden sm:inline">Vue 3D</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:ml-2" viewBox="0 0 20 20" fill="currentColor">
+                            <span class="inline">Vue 3D</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
                             </svg>
                         </button>
@@ -156,6 +157,18 @@
                 </svg>
                 <span class="text-xs text-gray-600 mt-1">Accueil</span>
             </button>
+
+            {#if showView3D}
+                <button 
+                    on:click={navigateTo3DView}
+                    class="flex flex-col items-center p-2"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-xs text-gray-600 mt-1">Vue 3D</span>
+                </button>
+            {/if}
         </div>
     </nav>
 </div>
