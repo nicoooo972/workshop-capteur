@@ -55,13 +55,13 @@
 
     // Configuration des étages
     const floors = [
-        { id: -1, name: 'Sous-sol', model: 'src/models/Workshop sous-sol.glb' },
-        { id: 0, name: 'RDC', model: 'src/models/Workshop rdc.glb' },
-        { id: 1, name: '1er étage', model: 'src/models/Workshop etage1.glb' },
-        { id: 2, name: '2ème étage', model: 'src/models/Workshop etage2.glb' },
-        { id: 3, name: '3ème étage', model: 'src/models/Workshop etage3.glb' },
-        { id: 4, name: '4ème étage', model: 'src/models/Workshop etage4.glb' },
-        { id: 5, name: '5ème étage', model: 'src/models/Workshop etage5.glb' }
+        { id: -1, name: 'Sous-sol', model: '/models/Workshop sous-sol.glb' },
+    { id: 0, name: 'RDC', model: '/models/Workshop rdc.glb' },
+    { id: 1, name: '1er étage', model: '/models/Workshop etage1.glb' },
+    { id: 2, name: '2ème étage', model: '/models/Workshop etage2.glb' },
+    { id: 3, name: '3ème étage', model: '/models/Workshop etage3.glb' },
+    { id: 4, name: '4ème étage', model: '/models/Workshop etage4.glb' },
+    { id: 5, name: '5ème étage', model: '/models/Workshop etage5.glb' }
     ];
 
     // Fonctions de gestion de la caméra
