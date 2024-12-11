@@ -259,7 +259,7 @@ ${filteredData.map(row => `
   }
 
   // Initialisation
-  onMount(async () => {
+ onMount(async () => {
     if (!roomId) return;
     
     console.log('Connecting to room:', roomId); // Debug
@@ -288,7 +288,7 @@ ${filteredData.map(row => `
     });
 
     return () => unsubscribe();
-  });
+  }); 
 </script>
 
 <svelte:head>

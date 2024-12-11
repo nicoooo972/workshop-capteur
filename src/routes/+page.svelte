@@ -188,19 +188,20 @@
         showView3D={true}
     />
 
-    <main class="pt-32 pb-8 px-4 sm:px-6 lg:px-8">
+    <main class="pt-24 sm:pt-32 pb-8 px-3 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto">
             <!-- Filtres et recherche -->
-            <div class="sticky top-20 z-10 bg-gray-50 pb-4 space-y-6">
-                <div class="relative">
+            <div class="sticky top-16 sm:top-20 z-10 bg-gray-50 pb-4 space-y-4 sm:space-y-6">
+                <!-- Barre de recherche responsive -->
+                <div class="relative max-w-2xl mx-auto">
                     <input
                         type="text"
                         bind:value={searchQuery}
                         placeholder="Rechercher une salle..."
-                        class="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
+                        class="w-full px-4 py-2 sm:py-3 pl-10 text-sm sm:text-base rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
                     />
                     <svg 
-                        class="absolute left-3 top-3.5 h-5 w-5 text-gray-400" 
+                        class="absolute left-3 top-2.5 sm:top-3.5 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" 
                         fill="none" 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"
@@ -214,11 +215,12 @@
                     </svg>
                 </div>
 
-                <div class="relative -left-4 sm:-left-6 lg:-left-8 w-screen">
-                    <div class="px-4 sm:px-6 lg:px-8">
-                        <div class="flex gap-2 overflow-x-auto scrollbar-hide py-2">
+                <!-- Filtres d'étage responsive -->
+                <div class="relative -left-3 sm:-left-6 lg:-left-8 w-screen">
+                    <div class="px-3 sm:px-6 lg:px-8">
+                        <div class="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide py-1.5 sm:py-2">
                             <button
-                                class="px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap
+                                class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap
                                     {selectedFloor === null ? 
                                         'bg-indigo-600 text-white' : 
                                         'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'}"
@@ -228,7 +230,7 @@
                             </button>
                             {#each floors as floor}
                                 <button
-                                    class="px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap
+                                    class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap
                                         {selectedFloor === floor.number ? 
                                             'bg-indigo-600 text-white' : 
                                             'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'}"
@@ -242,42 +244,43 @@
                 </div>
             </div>
 
-            <!-- Contenu principal -->
-            <div class="mt-6">
+            <!-- Grille de salles responsive -->
+            <div class="mt-4 sm:mt-6">
                 {#if loading}
-                    <div class="flex flex-col items-center justify-center py-12">
-                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
-                        <p class="mt-4 text-gray-600">Chargement des salles...</p>
+                    <div class="flex flex-col items-center justify-center py-8 sm:py-12">
+                        <div class="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-3 sm:border-4 border-indigo-500 border-t-transparent"></div>
+                        <p class="mt-3 sm:mt-4 text-sm sm:text-base text-gray-600">Chargement des salles...</p>
                     </div>
                 {:else if filteredRooms.length === 0}
-                    <div class="text-center py-12">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="text-center py-8 sm:py-12">
+                        <svg class="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <p class="mt-4 text-gray-600">Aucune salle ne correspond à votre recherche</p>
+                        <p class="mt-3 sm:mt-4 text-sm sm:text-base text-gray-600">Aucune salle ne correspond à votre recherche</p>
                         <button
-                            class="mt-4 text-indigo-600 hover:text-indigo-500"
+                            class="mt-3 sm:mt-4 text-sm sm:text-base text-indigo-600 hover:text-indigo-500"
                             on:click={() => { searchQuery = ''; selectedFloor = null; }}
                         >
                             Réinitialiser les filtres
                         </button>
                     </div>
                 {:else}
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                         {#each filteredRooms as room (room.id)}
                             <div
                                 class="group bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-100"
                                 class:cursor-pointer={!room.isEditing}
                                 on:click={() => !room.isEditing && navigateToRoom(room.id)}
                             >
-                                <div class="p-4 sm:p-6">
-                                    <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 sm:p-4 lg:p-6">
+                                    <!-- En-tête de carte responsive -->
+                                    <div class="flex items-start justify-between mb-3 sm:mb-4">
                                         <div class="flex-1 min-w-0">
                                             {#if room.isEditing}
-                                                <div class="flex items-center gap-2">
+                                                <div class="flex items-center gap-1.5 sm:gap-2">
                                                     <input
                                                         type="text"
-                                                        class="flex-1 px-3 py-2 text-base border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                                        class="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                                         value={room.name}
                                                         on:click={(e) => e.stopPropagation()}
                                                         on:keydown={(e) => {
@@ -285,45 +288,46 @@
                                                             else if (e.key === 'Escape') cancelEditing(room);
                                                         }}
                                                     />
+                                                    <!-- Boutons d'édition responsifs -->
                                                     <div class="flex gap-1">
                                                         <button
-                                                            class="p-2 text-green-600 hover:text-green-800 rounded-full hover:bg-green-50"
+                                                            class="p-1.5 sm:p-2 text-green-600 hover:text-green-800 rounded-full hover:bg-green-50"
                                                             on:click={(e) => {
                                                                 e.stopPropagation();
                                                                 const input = e.target.closest('div').previousElementSibling;
                                                                 saveRoomName(room, input.value);
                                                             }}
                                                         >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
                                                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                                                             </svg>
                                                         </button>
                                                         <button
-                                                            class="p-2 text-red-600 hover:text-red-800 rounded-full hover:bg-red-50"
+                                                            class="p-1.5 sm:p-2 text-red-600 hover:text-red-800 rounded-full hover:bg-red-50"
                                                             on:click={(e) => {
                                                                 e.stopPropagation();
                                                                 cancelEditing(room);
                                                             }}
                                                         >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
                                                                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
                                                             </svg>
                                                         </button>
                                                     </div>
                                                 </div>
                                             {:else}
-                                                <div class="flex items-start gap-2">
-                                                    <h3 class="text-lg font-semibold text-gray-900 truncate">
+                                                <div class="flex items-start gap-1.5 sm:gap-2">
+                                                    <h3 class="text-base sm:text-lg font-semibold text-gray-900 truncate">
                                                         {room.name}
                                                     </h3>
                                                     <button
-                                                        class="p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        class="p-0.5 sm:p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
                                                         on:click={(e) => {
                                                             e.stopPropagation();
                                                             startEditing(room);
                                                         }}
                                                     >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
                                                             <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                                                         </svg>
                                                     </button>
@@ -331,43 +335,46 @@
                                             {/if}
                                         </div>
 
-                                        <div class="flex items-center ml-4">
-                                            <span class={`h-3 w-3 rounded-full ${getStatusColor(room.status)}`}></span>
-                                            <span class="ml-2 text-sm text-gray-500 whitespace-nowrap">
+                                        <!-- Statut responsive -->
+                                        <div class="flex items-center ml-3 sm:ml-4">
+                                            <span class={`h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full ${getStatusColor(room.status)}`}></span>
+                                            <span class="ml-1.5 sm:ml-2 text-xs sm:text-sm text-gray-500 whitespace-nowrap">
                                                 {getStatusText(room.status)}
                                             </span>
                                         </div>
                                     </div>
 
-                                    <div class="space-y-2">
-                                        <div class="flex items-center text-sm text-gray-600">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <!-- Informations de la salle responsives -->
+                                    <div class="space-y-1.5 sm:space-y-2">
+                                        <div class="flex items-center text-xs sm:text-sm text-gray-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                             </svg>
                                             <span>{formatFloorName(room.floor)} - {room.location}</span>
                                         </div>
 
-                                        <div class="flex items-center text-sm text-gray-500">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <div class="flex items-center text-xs sm:text-sm text-gray-500">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
                                             <span>Dernière mise à jour: {formatLastUpdate(room.lastUpdate)}</span>
                                         </div>
                                     </div>
 
-                                    <div class="mt-4 flex justify-end">
+                                    <!-- Bouton détails responsive -->
+                                    <div class="mt-3 sm:mt-4 flex justify-end">
                                         <button
-                                            class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2 text-sm font-medium"
-                                            on:click={(e) => {
-                                                e.stopPropagation();
-                                                navigateToRoom(room.id);
-                                            }}
-                                        >
-                                            <span>Voir les détails</span>
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                            </svg>
-                                        </button>
+    class="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium"
+    on:click={(e) => {
+        e.stopPropagation();
+        navigateToRoom(room.id);
+    }}
+>
+    <span>Voir les détails</span>
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+    </svg>
+</button>
                                     </div>
                                 </div>
                             </div>
