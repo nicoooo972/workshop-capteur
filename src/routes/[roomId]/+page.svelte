@@ -12,10 +12,9 @@
   import { jsPDF } from 'jspdf';
   import 'jspdf-autotable';
   import UnifiedAnalysis from '$lib/components/UnifiedAnalysis.svelte';
-  import { notifications } from '$lib/stores/notifications';
 
+  import { sensors } from '$lib/stores/sensors';
 
-  // Types
   type SensorData = {
       co2: number;
       humidity: number;
@@ -62,7 +61,7 @@
   const thresholds = {
       co2: [400, 1000],        // ppm
       temperature: [18, 26],    // °C
-      humidity: [30, 70]        // %
+      humidity: [40, 60]        // %
   };
 
   // Réactivité
@@ -76,7 +75,9 @@
   $: currentAlerts = latestData ? generateAlerts(latestData) : [];
   $: dataIsStale = latestData ? isDataStale(latestData.timestamp) : false;
   $: stats = calculateStats(filteredData, selectedMetric);
+  $: roomData = $sensors.find(room => room.id === roomId)?.data || [];
 
+  // Types
   // Fonctions utilitaires
   function getLatestData(data: SensorData[]): SensorData | null {
       if (!data.length) return null;
@@ -112,19 +113,21 @@
 
       // Alerte CO2
       if (data.co2 < thresholds.co2[0] || data.co2 > thresholds.co2[1]) {
-        notifications.addNotification({
-            type: 'co2',
-            value: data.co2,
-            threshold: thresholds.co2,
-            timestamp: data.timestamp,
-            location: data.title,
-            severity: data.co2 > thresholds.co2[1] * 1.2 ? 'critical' : 'warning'
-        });
-    }
+          alerts.push({
+              id: `co2-${data.timestamp}`,
+              type: 'co2',
+              value: data.co2,
+              threshold: thresholds.co2,
+              timestamp: data.timestamp,
+              location: data.title,
+              severity: data.co2 > thresholds.co2[1] * 1.2 ? 'critical' : 'warning',
+              isStale
+          });
+      }
 
       // Alerte température
       if (data.temperature < thresholds.temperature[0] || data.temperature > thresholds.temperature[1]) {
-        notifications.addNotification({
+          alerts.push({
               id: `temp-${data.timestamp}`,
               type: 'temperature',
               value: data.temperature,
@@ -138,7 +141,7 @@
 
       // Alerte humidité
       if (data.humidity < thresholds.humidity[0] || data.humidity > thresholds.humidity[1]) {
-        notifications.addNotification({
+          alerts.push({
               id: `humid-${data.timestamp}`,
               type: 'humidity',
               value: data.humidity,
@@ -249,20 +252,20 @@ ${filteredData.map(row => `
 
   // Initialisation
   onMount(async () => {
-      if (!roomId) return;
+    if (!roomId) return;
 
-      const roomRef = ref(db, `dcCampus/${roomId}`);
-      const unsubscribe = onValue(roomRef, (snapshot) => {
-          const data = snapshot.val();
-          if (data) {
-              roomData = Object.values(data)
-                  .sort((a: any, b: any) => b.timestamp - a.timestamp);
-          }
-          isLoading = false;
-      });
+    const roomRef = ref(db, `dcCampus/${roomId}`);
+    const unsubscribe = onValue(roomRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            roomData = Object.values(data)
+                .sort((a: any, b: any) => b.timestamp - a.timestamp);
+        }
+        isLoading = false;
+    });
 
-      return () => unsubscribe();
-  });
+    return () => unsubscribe();
+});
 </script>
 
 <svelte:head>
@@ -308,6 +311,76 @@ ${filteredData.map(row => `
                   </button>
               </div>
 
+              <!-- Dialogue d'export -->
+{#if showExportDialog}
+<Dialog open={showExportDialog} onOpenChange={(open) => showExportDialog = open}>
+    <div class="p-6">
+        <h2 class="text-xl font-bold mb-4">Exporter les données</h2>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Format d'export</label>
+                <div class="grid grid-cols-3 gap-2">
+                    {#each ['csv', 'pdf', 'xml'] as format}
+                        <button
+                            class="p-4 border rounded-lg text-center transition-colors duration-200 
+                                {exportFormat === format 
+                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
+                                    : 'hover:bg-gray-50'}"
+                            on:click={() => exportFormat = format}
+                        >
+                            {format.toUpperCase()}
+                        </button>
+                    {/each}
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button
+                    class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    on:click={() => showExportDialog = false}
+                >
+                    Annuler
+                </button>
+                <button
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    on:click={handleExport}
+                >
+                    Exporter
+                </button>
+            </div>
+        </div>
+    </div>
+</Dialog>
+{/if}
+
+
+            <!-- Cartes de métriques -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <MetricCard
+                  title="CO2"
+                  value={latestData.co2}
+                  unit="ppm"
+                  thresholds={thresholds.co2}
+                  icon="📊"
+              />
+              
+              <MetricCard
+                  title="Température"
+                  value={latestData.temperature}
+                  unit="°C"
+                  thresholds={thresholds.temperature}
+                  icon="🌡️"
+              />
+              
+              <MetricCard
+                  title="Humidité"
+                  value={latestData.humidity}
+                  unit="%"
+                  thresholds={thresholds.humidity}
+                  icon="💧"
+              />
+          </div>
+
               <!-- Période d'analyse -->
               <div class="bg-white rounded-lg shadow-sm p-6 space-y-6">
                   <div class="space-y-3">
@@ -350,33 +423,6 @@ ${filteredData.map(row => `
                 </div>
             </div>
 
-            <!-- Cartes de métriques -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <MetricCard
-                    title="CO2"
-                    value={latestData.co2}
-                    unit="ppm"
-                    thresholds={thresholds.co2}
-                    icon="📊"
-                />
-                
-                <MetricCard
-                    title="Température"
-                    value={latestData.temperature}
-                    unit="°C"
-                    thresholds={thresholds.temperature}
-                    icon="🌡️"
-                />
-                
-                <MetricCard
-                    title="Humidité"
-                    value={latestData.humidity}
-                    unit="%"
-                    thresholds={thresholds.humidity}
-                    icon="💧"
-                />
-            </div>
-
             <!-- Graphique -->
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <h2 class="text-lg font-semibold mb-4">Évolution des mesures</h2>
@@ -403,48 +449,6 @@ ${filteredData.map(row => `
         {/if}
     </div>
 </main>
-
-<!-- Dialogue d'export -->
-{#if showExportDialog}
-    <Dialog open={showExportDialog} onOpenChange={(open) => showExportDialog = open}>
-        <div class="p-6">
-            <h2 class="text-xl font-bold mb-4">Exporter les données</h2>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Format d'export</label>
-                    <div class="grid grid-cols-3 gap-2">
-                        {#each ['csv', 'pdf', 'xml'] as format}
-                            <button
-                                class="p-4 border rounded-lg text-center transition-colors duration-200 
-                                    {exportFormat === format 
-                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
-                                        : 'hover:bg-gray-50'}"
-                                on:click={() => exportFormat = format}
-                            >
-                                {format.toUpperCase()}
-                            </button>
-                        {/each}
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-2 mt-6">
-                    <button
-                        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                        on:click={() => showExportDialog = false}
-                    >
-                        Annuler
-                    </button>
-                    <button
-                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                        on:click={handleExport}
-                    >
-                        Exporter
-                    </button>
-                </div>
-            </div>
-        </div>
-    </Dialog>
-{/if}
 </div>
 
 <style>

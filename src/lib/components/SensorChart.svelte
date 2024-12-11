@@ -9,18 +9,23 @@
         temperature: number;
         humidity: number;
     }>;
-    export let metric: 'co2' | 'temperature' | 'humidity';
-    export let chart: Chart;
     
+    let selectedMetric: 'temperature' | 'humidity' | 'co2' = 'temperature';
+    let selectedView = 'evolution';
+    let chart: Chart;
     let canvas: HTMLCanvasElement;
-    let displayData: typeof data;
     let isMobile = false;
     let showModal = false;
     let selectedPoint: any = null;
 
-    // Limite uniquement pour mobile
     const MOBILE_POINT_LIMIT = 20;
-    
+
+    const metrics = [
+        { id: 'temperature', label: '🌡️ Température', unit: '°C' },
+        { id: 'humidity', label: '💧 Humidité', unit: '%' },
+        { id: 'co2', label: '📊 CO2', unit: 'ppm' }
+    ];
+
     const metricConfig = {
         co2: {
             label: 'CO2 (ppm)',
@@ -65,7 +70,7 @@
             label: 'Humidité (%)',
             color: 'rgb(16, 185, 129)',
             fill: 'rgba(16, 185, 129, 0.1)',
-            thresholds: [30, 70],
+            thresholds: [40, 60],
             recommendations: {
                 high: [
                     "Activer le déshumidificateur",
@@ -82,6 +87,75 @@
             }
         }
     };
+    
+    // Tri chronologique des données
+    $: sortedData = [...data].sort((a, b) => a.timestamp - b.timestamp);
+
+    // Calcul des statistiques par période pour la métrique sélectionnée
+    $: timeStats = (() => {
+        if (!sortedData.length) return { day: 0, week: 0, month: 0 };
+        
+        const now = Date.now();
+        const day = 24 * 60 * 60 * 1000;
+        const week = 7 * day;
+        const month = 30 * day;
+
+        const dayData = sortedData.filter(d => now - d.timestamp < day);
+        const weekData = sortedData.filter(d => now - d.timestamp < week);
+        const monthData = sortedData.filter(d => now - d.timestamp < month);
+
+        const getAvg = (arr: any[]) => arr.reduce((acc, curr) => acc + curr[selectedMetric], 0) / (arr.length || 1);
+
+        return {
+            day: getAvg(dayData),
+            week: getAvg(weekData),
+            month: getAvg(monthData)
+        };
+    })();
+
+    // Calcul des statistiques par heure
+    $: hourlyStats = (() => {
+        const hours = Array.from({ length: 24 }, (_, i) => ({
+            hour: i,
+            values: [],
+            avg: 0
+        }));
+
+        sortedData.forEach(d => {
+            const hour = new Date(d.timestamp).getHours();
+            hours[hour].values.push(d[selectedMetric]);
+        });
+
+        return hours.map(h => ({
+            hour: h.hour,
+            avg: h.values.reduce((acc, val) => acc + val, 0) / (h.values.length || 1)
+        }));
+    })();
+
+    // Distribution des valeurs
+    $: distribution = (() => {
+        const values = sortedData.map(d => d[selectedMetric]);
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const range = max - min;
+        const bucketSize = range / 12;
+
+        const buckets = Array.from({ length: 12 }, (_, i) => ({
+            range: `${(min + i * bucketSize).toFixed(1)} - ${(min + (i + 1) * bucketSize).toFixed(1)}`,
+            count: 0
+        }));
+
+        values.forEach(value => {
+            const bucketIndex = Math.min(Math.floor((value - min) / bucketSize), 11);
+            buckets[bucketIndex].count++;
+        });
+
+        return buckets;
+    })();
+
+    function getMetricUnit(metricId: string): string {
+        return metrics.find(m => m.id === metricId)?.unit || '';
+    }
 
     function getStatus(value: number, metricType: string) {
         const thresholds = metricConfig[metricType].thresholds;
@@ -106,7 +180,7 @@
         }
     }
 
-    function limitDataPoints(data: typeof displayData): typeof displayData {
+    function limitDataPoints(data: typeof sortedData): typeof sortedData {
         if (!isMobile) return data;
         if (data.length <= MOBILE_POINT_LIMIT) return data;
         const step = Math.ceil(data.length / MOBILE_POINT_LIMIT);
@@ -114,132 +188,210 @@
     }
 
     function updateChart() {
+        if (chart) {
+            chart.destroy();
+        }
+
         if (!canvas) return;
-        if (chart) chart.destroy();
-        
-        const config = metricConfig[metric];
-        let sortedData = [...data].sort((a, b) => a.timestamp - b.timestamp);
-        displayData = limitDataPoints(sortedData);
 
         const ctx = canvas.getContext('2d');
-        
-        // Plugin personnalisé pour les seuils
-        const thresholdPlugin = {
-            id: 'thresholds',
-            beforeDraw: (chart) => {
-                const ctx = chart.ctx;
-                const yAxis = chart.scales.y;
-                const thresholds = config.thresholds;
-                
-                ctx.save();
-                ctx.beginPath();
-                ctx.strokeStyle = 'rgba(234, 179, 8, 0.5)';
-                ctx.setLineDash([5, 5]);
-                
-                thresholds.forEach(threshold => {
-                    const y = yAxis.getPixelForValue(threshold);
-                    ctx.moveTo(chart.chartArea.left, y);
-                    ctx.lineTo(chart.chartArea.right, y);
-                });
-                
-                ctx.stroke();
-                ctx.restore();
-            }
-        };
+        const config = metricConfig[selectedMetric];
+        const displayData = limitDataPoints(sortedData);
 
-        chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: displayData.map(d => new Date(d.timestamp).toLocaleString('fr-FR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    day: 'numeric',
-                    month: 'numeric'
-                })),
-                datasets: [{
-                    label: config.label,
-                    data: displayData.map(d => d[metric]),
-                    borderColor: config.color,
-                    backgroundColor: config.fill,
-                    tension: 0.3,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: (context) => {
-                                const value = context.raw as number;
-                                const status = getStatus(value, metric);
-                                let label = `${config.label}: ${value}`;
-                                
-                                if (status === 'high') {
-                                    label += ' ⚠️ Valeur trop élevée';
-                                } else if (status === 'low') {
-                                    label += ' ⚠️ Valeur trop basse';
-                                } else {
-                                    label += ' ✅ Valeur normale';
+        let chartData;
+        let chartOptions;
+
+        switch (selectedView) {
+            case 'evolution':
+                // Plugin personnalisé pour les seuils
+                const thresholdPlugin = {
+                    id: 'thresholds',
+                    beforeDraw: (chart) => {
+                        const ctx = chart.ctx;
+                        const yAxis = chart.scales.y;
+                        const thresholds = config.thresholds;
+                        
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.strokeStyle = 'rgba(234, 179, 8, 0.5)';
+                        ctx.setLineDash([5, 5]);
+                        
+                        thresholds.forEach(threshold => {
+                            const y = yAxis.getPixelForValue(threshold);
+                            ctx.moveTo(chart.chartArea.left, y);
+                            ctx.lineTo(chart.chartArea.right, y);
+                        });
+                        
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                };
+
+                chartData = {
+                    labels: displayData.map(d => new Date(d.timestamp).toLocaleString('fr-FR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        day: 'numeric',
+                        month: 'numeric'
+                    })),
+                    datasets: [{
+                        label: config.label,
+                        data: displayData.map(d => d[selectedMetric]),
+                        borderColor: config.color,
+                        backgroundColor: config.fill,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                };
+
+                chartOptions = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: (context) => {
+                                    const value = context.raw as number;
+                                    const status = getStatus(value, selectedMetric);
+                                    let label = `${config.label}: ${value}`;
+                                    
+                                    if (status === 'high') {
+                                        label += ' ⚠️ Valeur trop élevée';
+                                    } else if (status === 'low') {
+                                        label += ' ⚠️ Valeur trop basse';
+                                    } else {
+                                        label += ' ✅ Valeur normale';
+                                    }
+                                    
+                                    return label;
                                 }
-                                
-                                return label;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45,
-                            font: {
-                                size: isMobile ? 10 : 12
                             }
                         }
                     },
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            font: {
-                                size: isMobile ? 10 : 12
+                    scales: {
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                font: {
+                                    size: isMobile ? 10 : 12
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                font: {
+                                    size: isMobile ? 10 : 12
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    onClick: (event, elements) => {
+                        if (elements && elements.length > 0) {
+                            const index = elements[0].index;
+                            const value = displayData[index][selectedMetric];
+                            const status = getStatus(value, selectedMetric);
+                            selectedPoint = {
+                                value,
+                                timestamp: displayData[index].timestamp,
+                                status,
+                                recommendations: status !== 'normal' ? metricConfig[selectedMetric].recommendations[status] : null
+                            };
+                            showModal = true;
+                        }
+                    }
+                };
+
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: chartData,
+                    options: chartOptions,
+                    plugins: [thresholdPlugin]
+                });
+                break;
+
+            case 'hourly':
+                chartData = {
+                    labels: hourlyStats.map(h => `${h.hour}h`),
+                    datasets: [{
+                        label: 'Moyenne',
+                        data: hourlyStats.map(h => h.avg),
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        borderWidth: 1
+                    }]
+                };
+                chartOptions = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: getMetricUnit(selectedMetric)
                             }
                         }
                     }
-                },
-                interaction: {
-                    mode: 'nearest',
-                    axis: 'x',
-                    intersect: false
-                },
-                onClick: (event, elements) => {
-                    if (elements && elements.length > 0) {
-                        const index = elements[0].index;
-                        const value = displayData[index][metric];
-                        const status = getStatus(value, metric);
-                        selectedPoint = {
-                            value,
-                            timestamp: displayData[index].timestamp,
-                            status,
-                            recommendations: status !== 'normal' ? metricConfig[metric].recommendations[status] : null
-                        };
-                        showModal = true;
-                    }
-                }
-            },
-            plugins: [thresholdPlugin]
-        });
-    }
+                };
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: chartData,
+                    options: chartOptions
+                });
+                break;
 
-    function checkMobile() {
-        if (typeof window !== 'undefined') {
-            isMobile = window.innerWidth < 768;
+            case 'distribution':
+                chartData = {
+                    labels: distribution.map(d => d.range),
+                    datasets: [{
+                        label: 'Nombre de mesures',
+                        data: distribution.map(d => d.count),
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        borderWidth: 1
+                    }]
+                };
+                chartOptions = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Nombre de mesures'
+                            }
+                        }
+                    }
+                };
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: chartData,
+                    options: chartOptions
+                });
+                break;
         }
     }
 
@@ -250,17 +402,22 @@
         }, 200);
     }
 
-    // Mise à jour lors des changements de données ou de métrique
-    $: {
-        if (canvas && data && metric) {
-            updateChart();
+    function checkMobile() {
+        if (typeof window !== 'undefined') {
+            isMobile = window.innerWidth < 768;
         }
     }
 
     function handleResize() {
         const wasMobile = isMobile;
         checkMobile();
-        if (canvas && wasMobile !== isMobile) {
+        if (wasMobile !== isMobile) {
+            updateChart();
+        }
+    }
+
+    $: {
+        if (canvas && sortedData) {
             updateChart();
         }
     }
