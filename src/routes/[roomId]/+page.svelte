@@ -401,40 +401,7 @@ ${filteredData.map(row => `
                       </div>
                   </div>
 
-                  <div class="space-y-3">
-                    <h3 class="text-base font-medium text-gray-900">Métrique à afficher</h3>
-                    <div class="flex flex-wrap gap-3">
-                        {#each metrics as metric}
-                            <button
-                                class="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200
-                                    {selectedMetric === metric.id 
-                                        ? 'bg-indigo-600 text-white shadow-md scale-105' 
-                                        : 'bg-white text-gray-700 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'}"
-                                on:click={() => selectedMetric = metric.id}
-                            >
-                                <span class="text-lg">{metric.icon}</span>
-                                <span>{metric.label}</span>
-                                {#if selectedMetric === metric.id}
-                                    <span class="ml-1 w-2 h-2 rounded-full bg-white"/>
-                                {/if}
-                            </button>
-                        {/each}
-                    </div>
-                </div>
             </div>
-
-            <!-- Graphique -->
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <h2 class="text-lg font-semibold mb-4">Évolution des mesures</h2>
-                <div class="h-[400px]">
-                    <SensorChart 
-                        data={filteredData} 
-                        metric={selectedMetric}
-                        bind:chart
-                    />
-                </div>
-            </div>
-
             <!-- Analyse unifiée -->
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <UnifiedAnalysis data={filteredData} />

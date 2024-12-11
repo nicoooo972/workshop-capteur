@@ -91,6 +91,15 @@
     // Tri chronologique des données
     $: sortedData = [...data].sort((a, b) => a.timestamp - b.timestamp);
 
+    // Surveiller les changements de métrique et de vue
+    $: {
+        selectedMetric;
+        selectedView;
+        if (chart) {
+            updateChart();
+        }
+    }
+
     // Calcul des statistiques par période pour la métrique sélectionnée
     $: timeStats = (() => {
         if (!sortedData.length) return { day: 0, week: 0, month: 0 };
@@ -416,17 +425,12 @@
         }
     }
 
-    $: {
-        if (canvas && sortedData) {
-            updateChart();
-        }
-    }
-
     onMount(() => {
         checkMobile();
         if (typeof window !== 'undefined') {
             window.addEventListener('resize', handleResize);
         }
+        updateChart(); // Initial chart creation
         
         return () => {
             if (typeof window !== 'undefined') {
@@ -439,10 +443,54 @@
     });
 </script>
 
-<div class="relative w-full" style="height: {isMobile ? '300px' : '400px'}">
-    <canvas bind:this={canvas}></canvas>
+<div class="space-y-4">
+    <!-- Sélection des métriques -->
+    <div class="flex gap-2">
+        {#each metrics as metric}
+            <button
+                class="px-4 py-2 rounded-lg transition-colors {selectedMetric === metric.id ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}"
+                on:click={() => selectedMetric = metric.id}
+            >
+                {metric.label}
+            </button>
+        {/each}
+    </div>
+
+    <!-- Sélection des vues -->
+    <div class="flex gap-2">
+        {#each ['evolution', 'hourly', 'distribution'] as view}
+            <button
+                class="px-4 py-2 rounded-lg transition-colors {selectedView === view ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}"
+                on:click={() => selectedView = view}
+            >
+                {view}
+            </button>
+        {/each}
+    </div>
+
+    <!-- Graphique -->
+    <div class="relative w-full" style="height: {isMobile ? '300px' : '400px'}">
+        <canvas bind:this={canvas}></canvas>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-sm text-gray-500">Moyenne journalière</h3>
+            <p class="text-2xl font-semibold">{timeStats.day.toFixed(1)} {getMetricUnit(selectedMetric)}</p>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-sm text-gray-500">Moyenne hebdomadaire</h3>
+            <p class="text-2xl font-semibold">{timeStats.week.toFixed(1)} {getMetricUnit(selectedMetric)}</p>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-sm text-gray-500">Moyenne mensuelle</h3>
+            <p class="text-2xl font-semibold">{timeStats.month.toFixed(1)} {getMetricUnit(selectedMetric)}</p>
+        </div>
+    </div>
 </div>
 
+<!-- Modal -->
 {#if showModal && selectedPoint}
     <div 
         class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
@@ -483,7 +531,7 @@
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <div class="text-sm text-gray-500">Mesure</div>
                         <div class="mt-1 font-semibold">
-                            {selectedPoint.value.toFixed(1)} {metricConfig[metric].label.split(' ')[1]}
+                            {selectedPoint.value.toFixed(1)} {getMetricUnit(selectedMetric)}
                         </div>
                     </div>
                 </div>
@@ -519,7 +567,7 @@
                         </div>
                     {:else}
                         <p class="text-green-700">
-                            Cette valeur est comprise entre {metricConfig[metric].thresholds[0]} et {metricConfig[metric].thresholds[1]} {metricConfig[metric].label.split(' ')[1]}
+                            Cette valeur est comprise entre {metricConfig[selectedMetric].thresholds[0]} et {metricConfig[selectedMetric].thresholds[1]} {getMetricUnit(selectedMetric)}
                         </p>
                     {/if}
                 </div>
