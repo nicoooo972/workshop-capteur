@@ -128,22 +128,22 @@
     }
 
     function setupLighting() {
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
 
-        const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.5);
+        const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.7);
         directionalLight1.position.set(5, 5, 5);
         directionalLight1.castShadow = true;
         configureLight(directionalLight1);
         scene.add(directionalLight1);
 
-        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
         directionalLight2.position.set(-5, 5, -5);
         directionalLight2.castShadow = true;
         configureLight(directionalLight2);
         scene.add(directionalLight2);
 
-        const directionalLight3 = new THREE.DirectionalLight(0xffffff, 0.2);
+        const directionalLight3 = new THREE.DirectionalLight(0xffffff, 0.4);
         directionalLight3.position.set(0, 5, 0);
         directionalLight3.castShadow = true;
         configureLight(directionalLight3);
@@ -166,7 +166,7 @@
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.screenSpacePanning = false;
-        controls.minDistance = 5;
+        controls.minDistance = 1;
         controls.maxDistance = 20;
         controls.maxPolarAngle = Math.PI / 2;
         controls.addEventListener('end', saveCameraPosition);
@@ -686,10 +686,12 @@ function loadFloorModel(floorId: number) {
             currentModel.traverse((child) => {
                 if (child instanceof THREE.Mesh) {
                     child.material = new THREE.MeshPhongMaterial({
-                        color: 0x808080,
-                        shininess: 30,
+                        color: 0xcccccc,
+                        shininess: 10,
                         flatShading: false,
                         side: THREE.DoubleSide,
+                        metalness: 0.1,
+                        roughness: 0.8,
                     });
                     child.castShadow = true;
                     child.receiveShadow = true;
