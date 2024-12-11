@@ -62,7 +62,7 @@
                 <!-- Partie droite : Notifications, Vue 3D et Profil -->
                 <div class="flex items-center gap-4">
                     <!-- Notifications -->
-                    <div class="relative" use:clickOutside on:click_outside={handleClickOutside}>
+                    <div class="relative">
                         <NotificationBell on:click={() => showNotifications = !showNotifications} />
                         <NotificationPanel 
                             show={showNotifications} 
