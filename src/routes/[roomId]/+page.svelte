@@ -14,6 +14,8 @@
   import UnifiedAnalysis from '$lib/components/UnifiedAnalysis.svelte';
 
   import { sensors } from '$lib/stores/sensors';
+  import type { PageData } from './$types';
+
 
   type SensorData = {
       co2: number;
@@ -43,6 +45,8 @@
   let isLoading = true;
   let chart: any = null;
   let showAlerts = false;
+  export let data: PageData;
+
 
   // Configuration
   const timeRanges = {
@@ -65,7 +69,11 @@
   };
 
   // Réactivité
-  $: roomId = $page.params.roomId;
+  $: roomId = data.roomId;
+
+  console.log("roomId : ", roomId);
+
+  $: formattedRoomId = roomId ? roomId : '';
   
   $: filteredData = roomData
       .filter(entry => entry.timestamp > Date.now() - timeRanges[selectedTimeRange].value)
@@ -75,7 +83,7 @@
   $: currentAlerts = latestData ? generateAlerts(latestData) : [];
   $: dataIsStale = latestData ? isDataStale(latestData.timestamp) : false;
   $: stats = calculateStats(filteredData, selectedMetric);
-  $: roomData = $sensors.find(room => room.id === roomId)?.data || [];
+  
 
   // Types
   // Fonctions utilitaires
@@ -253,19 +261,34 @@ ${filteredData.map(row => `
   // Initialisation
   onMount(async () => {
     if (!roomId) return;
+    
+    console.log('Connecting to room:', roomId); // Debug
 
-    const roomRef = ref(db, `dcCampus/${roomId}`);
+    const roomRef = ref(db, `dcCampus/${roomId}`); // Chemin corrigé pour matcher votre structure
     const unsubscribe = onValue(roomRef, (snapshot) => {
         const data = snapshot.val();
+        console.log('Firebase data:', data); // Debug
+        
         if (data) {
-            roomData = Object.values(data)
-                .sort((a: any, b: any) => b.timestamp - a.timestamp);
+            roomData = Object.entries(data).map(([key, value]: [string, any]) => ({
+                ...value,
+                co2: value.co2,
+                humidity: value.humidity,
+                temperature: value.temperature,
+                timestamp: value.date, // Changé pour matcher votre structure
+                title: value.title
+            })).sort((a, b) => b.timestamp - a.timestamp);
+        } else {
+            roomData = [];
         }
+        isLoading = false;
+    }, (error) => {
+        console.error('Firebase error:', error);
         isLoading = false;
     });
 
     return () => unsubscribe();
-});
+  });
 </script>
 
 <svelte:head>
