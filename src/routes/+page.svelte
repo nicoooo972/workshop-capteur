@@ -5,8 +5,6 @@
     import { goto } from '$app/navigation';
     import Header from './Header.svelte';
 
-    
-   
     type RoomInfo = {
         id: string;
         name: string;
@@ -15,6 +13,10 @@
         location: string;
         floor: number;
         isEditing?: boolean;
+        temperature?: number;
+        humidity?: number;
+        co2?: number;
+        timestamp?: number;
     };
 
     const CACHE_KEY = 'roomCustomNames';
@@ -23,6 +25,13 @@
     let searchQuery = '';
     let loading = true;
     let selectedFloor: number | null = null;
+
+    // Configuration des seuils
+    const thresholds = {
+        co2: [400, 1000],        // ppm
+        temperature: [18, 26],    // °C
+        humidity: [40, 60]        // %
+    };
 
     // Gestion du cache des noms personnalisés
     function getCustomNamesFromCache(): Record<string, string> {
@@ -60,6 +69,11 @@
         if (timeDiff > 30 * 60 * 1000) return 'offline';
         if (timeDiff > 5 * 60 * 1000) return 'warning';
         return 'online';
+    }
+
+    function getMetricStatus(value: number, thresholds: number[]): string {
+        if (value < thresholds[0] || value > thresholds[1]) return 'bg-red-500';
+        return 'bg-green-500';
     }
 
     function formatFloorName(floorNumber: number): string {
@@ -107,12 +121,11 @@
         return matchesSearch && matchesFloor;
     });
 
-    // Fonctions de navigation
+    // Navigation et édition
     function navigateToRoom(roomId: string) {
         goto(`/${roomId}`);
     }
 
-    // Gestion de l'édition des noms
     function startEditing(room: RoomInfo) {
         rooms = rooms.map(r => ({
             ...r,
@@ -153,19 +166,22 @@
             if (data) {
                 rooms = Object.entries(data)
                     .map(([key, value]: [string, any]) => {
-                        const reports = Object.values(value || {});
-                        const latestData = reports[0] || {};
+                        const latestData = Object.values(value || {})[0] || {};
                         const floor = parseInt(key.split('_')[1]) || 0;
                         const defaultName = `Salle ${key.split('_').pop()}`;
                         
                         return {
                             id: key,
                             name: getRoomName(key, defaultName),
-                            lastUpdate: latestData.timestamp,
-                            status: getRoomStatus(latestData.timestamp),
+                            lastUpdate: latestData.date,
+                            status: getRoomStatus(latestData.date),
                             location: 'Digital Campus',
                             floor,
-                            isEditing: false
+                            isEditing: false,
+                            temperature: latestData.temperature,
+                            humidity: latestData.humidity,
+                            co2: latestData.co2,
+                            timestamp: latestData.date
                         };
                     })
                     .filter(room => room !== null);
@@ -359,7 +375,23 @@
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            <span>Dernière mise à jour: {formatLastUpdate(room.lastUpdate)}</span>
+                                            <span>Dernière mise à jour: {formatLastUpdate(room.timestamp)}</span>
+                                        </div>
+
+                                        <!-- Indicateurs de capteurs -->
+                                        <div class="grid grid-cols-3 gap-2 mt-2">
+                                            <div class="flex items-center gap-1">
+                                                <span class={`h-2 w-2 rounded-full ${room.temperature ? getMetricStatus(room.temperature, thresholds.temperature) : 'bg-gray-300'}`}></span>
+                                                <span class="text-xs">{room.temperature?.toFixed(1)}°C</span>
+                                            </div>
+                                            <div class="flex items-center gap-1">
+                                                <span class={`h-2 w-2 rounded-full ${room.humidity ? getMetricStatus(room.humidity, thresholds.humidity) : 'bg-gray-300'}`}></span>
+                                                <span class="text-xs">{room.humidity?.toFixed(1)}%</span>
+                                            </div>
+                                            <div class="flex items-center gap-1">
+                                                <span class={`h-2 w-2 rounded-full ${room.co2 ? getMetricStatus(room.co2, thresholds.co2) : 'bg-gray-300'}`}></span>
+                                                <span class="text-xs">{room.co2?.toFixed(0)} ppm</span>
+                                            </div>
                                         </div>
                                     </div>
 
