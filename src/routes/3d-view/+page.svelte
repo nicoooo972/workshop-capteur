@@ -32,7 +32,7 @@
     let camera: THREE.PerspectiveCamera;
     let renderer: THREE.WebGLRenderer;
     let controls: OrbitControls;
-    let font: THREE.Font | null = null;
+    let font: any | null = null; // Changed Font to any since Font is not exported from THREE
     let currentModel: THREE.Object3D | null = null;
     let placementPlane: THREE.Mesh;
     let mousePosition = new THREE.Vector3();
@@ -584,11 +584,10 @@ async function removeSensor(sensorData: SensorData) {
         currentFloor = floorId;
         loadFloorModel(floorId);
     }
-
     // Initialisation
-    onMount(async () => {
+    onMount(() => {
         try {
-            await loadFont();
+            loadFont();
         } catch (error) {
             console.error("Erreur lors du chargement de la police:", error);
         }
@@ -690,8 +689,6 @@ function loadFloorModel(floorId: number) {
                         shininess: 10,
                         flatShading: false,
                         side: THREE.DoubleSide,
-                        metalness: 0.1,
-                        roughness: 0.8,
                     });
                     child.castShadow = true;
                     child.receiveShadow = true;
@@ -724,7 +721,7 @@ function loadFloorModel(floorId: number) {
             loading = false;
         },
         undefined,
-        (err) => {
+        (err: any) => {
             error = `Erreur de chargement: ${err.message}`;
             loading = false;
         }
@@ -800,7 +797,7 @@ function loadFloorModel(floorId: number) {
                 {#if isPlacingMode}
                     <select
                         value={selectedSensor}
-                        on:change={(e) => onSensorSelect(e.target.value)}
+                        on:change={(e) => onSensorSelect((e.target as HTMLSelectElement).value)}
                         class="w-full p-2 border rounded-md text-sm"
                     >
                         <option value={null}>Sélectionnez une salle</option>
@@ -839,6 +836,7 @@ function loadFloorModel(floorId: number) {
     {/if}
 
     <!-- Canvas Three.js -->
+    <!-- svelte-ignore element_invalid_self_closing_tag -->
     <canvas bind:this={canvas} class="w-full h-full touch-none"/>
 
     <!-- Modal d'information du capteur -->
@@ -849,6 +847,7 @@ function loadFloorModel(floorId: number) {
                 <h3 class="text-lg font-bold">
                     {selectedSensorInfo.roomName}
                 </h3>
+                <!-- svelte-ignore a11y_consider_explicit_label -->
                 <button 
                     class="text-gray-400 hover:text-gray-600 transition-colors"
                     on:click={() => showSensorInfo = false}

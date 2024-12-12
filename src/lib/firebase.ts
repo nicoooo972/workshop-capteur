@@ -1,15 +1,27 @@
-import { initializeApp } from 'firebase/app';
-import { getDatabase } from 'firebase/database';
+import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { getDatabase, type Database } from 'firebase/database';
+import { firebaseConfig } from '$lib/config/public';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDRfqBnf_vz0clPPxrEcUjNUnqtY2YABkE",
-  authDomain: "workshop-3395b.firebaseapp.com",
-  databaseURL: "https://workshop-3395b-default-rtdb.europe-west1.firebasedatabase.app/",
-  projectId: "workshop-3395b",
-  storageBucket: "workshop-3395b.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef123456",
-};
+let firebaseApp: FirebaseApp;
+let database: Database;
 
-const app = initializeApp(firebaseConfig);
-export const db = getDatabase(app);
+function initializeFirebase() {
+    try {
+        if (!firebaseApp) {
+            firebaseApp = initializeApp(firebaseConfig);
+            database = getDatabase(firebaseApp);
+        }
+        return { app: firebaseApp, db: database };
+    } catch (error: any) {
+        if (error.code !== 'app/duplicate-app') {
+            throw error;
+        }
+        return { 
+            app: firebaseApp, 
+            db: database 
+        };
+    }
+}
+
+const { app, db } = initializeFirebase();
+export { app, db };
