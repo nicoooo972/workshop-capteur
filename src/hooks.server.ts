@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 
 export const handle: Handle = async ({ event, resolve }) => {
     const token = event.cookies.get('token');
-    console.log("ici c le token : ", token);
 
     if (token) {
         try {
