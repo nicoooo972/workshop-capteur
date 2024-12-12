@@ -15,6 +15,7 @@
 
   import { sensors } from '$lib/stores/sensors';
   import type { PageData } from './$types';
+	import RecommendationsAlert from '$lib/components/RecommendationsAlert.svelte';
 
 
   interface SensorData {
@@ -386,31 +387,53 @@ ${filteredData.map(row => `
 
 
             <!-- Cartes de métriques -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <MetricCard
-                  title="CO2"
-                  value={latestData.co2}
-                  unit="ppm"
-                  thresholds={thresholds.co2}
-                  icon="📊"
-              />
-              
-              <MetricCard
-                  title="Température"
-                  value={latestData.temperature}
-                  unit="°C"
-                  thresholds={thresholds.temperature}
-                  icon="🌡️"
-              />
-              
-              <MetricCard
-                  title="Humidité"
-                  value={latestData.humidity}
-                  unit="%"
-                  thresholds={thresholds.humidity}
-                  icon="💧"
-              />
-          </div>
+            <!-- Cartes de métriques -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="space-y-4">
+        <MetricCard
+            title="CO2"
+            value={latestData.co2}
+            unit="ppm"
+            thresholds={thresholds.co2}
+            icon="📊"
+        />
+        <RecommendationsAlert 
+            metric="co2"
+            value={latestData.co2}
+            thresholds={thresholds.co2}
+        />
+    </div>
+    
+    <div class="space-y-4">
+        <MetricCard
+            title="Température"
+            value={latestData.temperature}
+            unit="°C"
+            thresholds={thresholds.temperature}
+            icon="🌡️"
+        />
+        <RecommendationsAlert 
+            metric="temperature"
+            value={latestData.temperature}
+            thresholds={thresholds.temperature}
+        />
+    </div>
+    
+    <div class="space-y-4">
+        <MetricCard
+            title="Humidité"
+            value={latestData.humidity}
+            unit="%"
+            thresholds={thresholds.humidity}
+            icon="💧"
+        />
+        <RecommendationsAlert 
+            metric="humidity"
+            value={latestData.humidity}
+            thresholds={thresholds.humidity}
+        />
+    </div>
+</div>
 
               <!-- Période d'analyse -->
               <div class="bg-white rounded-lg shadow-sm p-6 space-y-6">

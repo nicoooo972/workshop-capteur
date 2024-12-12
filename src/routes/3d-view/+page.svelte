@@ -32,7 +32,7 @@
     let camera: THREE.PerspectiveCamera;
     let renderer: THREE.WebGLRenderer;
     let controls: OrbitControls;
-    let font: any | null = null; // Changed Font to any since Font is not exported from THREE
+    let font: any | null = null;
     let currentModel: THREE.Object3D | null = null;
     let placementPlane: THREE.Mesh;
     let mousePosition = new THREE.Vector3();
@@ -53,15 +53,20 @@
     let touchTimeout: number | null = null;
     let lastTapTime = 0;
 
+    // Fonction pour détecter si on est sur mobile
+    function isMobileDevice() {
+        return window.innerWidth <= 768;
+    }
+
     // Configuration des étages
     const floors = [
         { id: -1, name: 'Sous-sol', model: '/models/Workshop sous-sol.glb' },
-    { id: 0, name: 'RDC', model: '/models/Workshop rdc.glb' },
-    { id: 1, name: '1er étage', model: '/models/Workshop etage1.glb' },
-    { id: 2, name: '2ème étage', model: '/models/Workshop etage2.glb' },
-    { id: 3, name: '3ème étage', model: '/models/Workshop etage3.glb' },
-    { id: 4, name: '4ème étage', model: '/models/Workshop etage4.glb' },
-    { id: 5, name: '5ème étage', model: '/models/Workshop etage5.glb' }
+        { id: 0, name: 'RDC', model: '/models/Workshop rdc.glb' },
+        { id: 1, name: '1er étage', model: '/models/Workshop etage1.glb' },
+        { id: 2, name: '2ème étage', model: '/models/Workshop etage2.glb' },
+        { id: 3, name: '3ème étage', model: '/models/Workshop etage3.glb' },
+        { id: 4, name: '4ème étage', model: '/models/Workshop etage4.glb' },
+        { id: 5, name: '5ème étage', model: '/models/Workshop etage5.glb' }
     ];
 
     // Fonctions de gestion de la caméra
@@ -175,7 +180,6 @@
     function createSensorIndicator(data: SensorData) {
         const group = new THREE.Group();
         
-        // Sphère du capteur
         const geometry = new THREE.SphereGeometry(0.3, 16, 16);
         const material = new THREE.MeshPhongMaterial({
             color: getSensorColor(data.temperature, data.co2),
@@ -187,7 +191,6 @@
         const indicator = new THREE.Mesh(geometry, material);
         group.add(indicator);
         
-        // Halo lumineux
         const glowGeometry = new THREE.SphereGeometry(0.4, 16, 16);
         const glowMaterial = new THREE.MeshBasicMaterial({
             color: getSensorColor(data.temperature, data.co2),
@@ -197,7 +200,6 @@
         const glow = new THREE.Mesh(glowGeometry, glowMaterial);
         group.add(glow);
         
-        // Point lumineux
         const pointLight = new THREE.PointLight(
             getSensorColor(data.temperature, data.co2),
             1,
@@ -206,7 +208,6 @@
         pointLight.position.set(0, 0.2, 0);
         group.add(pointLight);
         
-        // Ajouter le texte 3D
         if (font) {
             const textGeometry = new TextGeometry(data.roomName, {
                 font: font,
@@ -216,22 +217,18 @@
                 bevelEnabled: false
             });
             
-            // Centrer le texte
             textGeometry.computeBoundingBox();
             const textWidth = textGeometry.boundingBox!.max.x - textGeometry.boundingBox!.min.x;
             
             const textMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
             const textMesh = new THREE.Mesh(textGeometry, textMaterial);
             
-            // Positionner le texte au-dessus du capteur
             textMesh.position.set(-textWidth/2, 1.2, 0);
             
-            // Faire face à la caméra
             const textGroup = new THREE.Group();
             textGroup.add(textMesh);
             group.add(textGroup);
             
-            // Mettre à jour la rotation du texte pour qu'il fasse face à la caméra
             group.userData.animate = () => {
                 textGroup.quaternion.copy(camera.quaternion);
                 indicator.scale.copy(initialScale).multiplyScalar(1 + Math.sin(Date.now() * 0.003) * 0.2);
@@ -239,16 +236,12 @@
             };
         }
 
-        // Animation de base du capteur
         const initialScale = indicator.scale.clone();
-        
-        // Positionner le capteur plus bas
         group.position.y = 0.1;
         
         return group;
     }
 
-    // Plan de placement
     function initPlacementPlane() {
         const geometry = new THREE.PlaneGeometry(100, 100);
         const material = new THREE.MeshBasicMaterial({
@@ -294,7 +287,6 @@
         }
 
         try {
-            // Récupérer les positions séparément
             const positionsRef = ref(db, 'sensorPositions');
             const positionsSnapshot = await get(positionsRef);
             const positions = positionsSnapshot.val() || {};
@@ -335,7 +327,6 @@
     }
 
     function updateSensorVisuals() {
-        // Supprime les anciens capteurs
         scene.children
             .filter(child => child.userData.isSensor)
             .forEach(sensor => scene.remove(sensor));
@@ -397,11 +388,9 @@
             };
 
             try {
-                // Création d'un noeud séparé pour les positions des capteurs
                 const sensorPositionRef = ref(db, `sensorPositions/${selectedSensor}`);
                 await set(sensorPositionRef, newPosition);
                 
-                // Mettre à jour le state local
                 sensorsData = sensorsData.map(sensor => {
                     if (sensor.id === selectedSensor) {
                         return { ...sensor, position: newPosition };
@@ -409,13 +398,9 @@
                     return sensor;
                 });
 
-                // Mettre à jour les visuels
                 updateSensorVisuals();
-
-                // Reset selection
                 selectedSensor = null;
 
-                // Success notification
                 const toast = document.createElement('div');
                 toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg z-50';
                 toast.textContent = 'Capteur placé avec succès';
@@ -434,68 +419,88 @@
     }
 
     function handleSensorClick(event: MouseEvent) {
-    const rect = canvas.getBoundingClientRect();
-    clickMouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
-    clickMouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+        const rect = canvas.getBoundingClientRect();
+        clickMouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+        clickMouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
 
-    raycaster.setFromCamera(clickMouse, camera);
-    const sensors = scene.children.filter(child => child.userData.isSensor);
-    const intersects = raycaster.intersectObjects(sensors, true);
+        raycaster.setFromCamera(clickMouse, camera);
+        const sensors = scene.children.filter(child => child.userData.isSensor);
+        const intersects = raycaster.intersectObjects(sensors, true);
 
-    if (intersects.length > 0) {
-        const clickedSensor = intersects[0].object.parent;
-        if (clickedSensor) {
-            if (editMode) {
-                // En mode édition, on retire le capteur
-                removeSensor(clickedSensor.userData.sensorData);
-            } else {
-                // En mode normal, on affiche les infos
-                selectedSensorInfo = clickedSensor.userData.sensorData;
-                showSensorInfo = true;
+        if (intersects.length > 0) {
+            const clickedSensor = intersects[0].object.parent;
+            if (clickedSensor) {
+                if (editMode) {
+                    removeSensor(clickedSensor.userData.sensorData);
+                } else {
+                    selectedSensorInfo = clickedSensor.userData.sensorData;
+                    showSensorInfo = true;
+                }
             }
+        } else {
+            selectedSensorInfo = null;
+            showSensorInfo = false;
         }
-    } else {
-        selectedSensorInfo = null;
-        showSensorInfo = false;
     }
-}
 
-async function removeSensor(sensorData: SensorData) {
-    if (!sensorData || !sensorData.id) return;
+    async function removeSensor(sensorData: SensorData) {
+        if (!sensorData || !sensorData.id) return;
 
-    try {
-        // Supprimer la position dans Firebase
-        const sensorPositionRef = ref(db, `sensorPositions/${sensorData.id}`);
-        await set(sensorPositionRef, null);
+        try {
+            const sensorPositionRef = ref(db, `sensorPositions/${sensorData.id}`);
+            await set(sensorPositionRef, null);
 
-        // Mettre à jour le state local
-        sensorsData = sensorsData.map(sensor => {
-            if (sensor.id === sensorData.id) {
-                return { ...sensor, position: undefined };
-            }
-            return sensor;
-        });
+            sensorsData = sensorsData.map(sensor => {
+                if (sensor.id === sensorData.id) {
+                    return { ...sensor, position: undefined };
+                }
+                return sensor;
+            });
 
-        // Mettre à jour les visuels
-        updateSensorVisuals();
+            updateSensorVisuals();
 
-        // Notification de succès
-        const toast = document.createElement('div');
-        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg z-50';
-        toast.textContent = 'Capteur retiré avec succès';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg z-50';
+            toast.textContent = 'Capteur retiré avec succès';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+            
+        } catch (error) {
+            console.error("Erreur lors du retrait du capteur:", error);
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg z-50';
+            toast.textContent = 'Erreur lors du retrait du capteur';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+    }
+
+    function togglePlacementMode() {
+        if (isMobileDevice()) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-white px-4 py-2 rounded-lg z-50';
+            toast.textContent = 'Le placement de capteurs est uniquement disponible sur ordinateur';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+            return;
+        }
+
+        isPlacingMode = !isPlacingMode;
+        editMode = isPlacingMode;
         
-    } catch (error) {
-        console.error("Erreur lors du retrait du capteur:", error);
-        const toast = document.createElement('div');
-        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg z-50';
-        toast.textContent = 'Erreur lors du retrait du capteur';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
+        if (isPlacingMode) {
+            canvas.addEventListener('click', onPlacementClick);
+            canvas.addEventListener('mousemove', onMouseMove);
+        } else {
+            canvas.removeEventListener('click', onPlacementClick);
+            canvas.removeEventListener('mousemove', onMouseMove);
+            selectedSensor = null;
+        }
+        
+        if (placementPlane) {
+            placementPlane.visible = isPlacingMode;
+        }
     }
-}
-
 
     function handleResize() {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -556,24 +561,6 @@ async function removeSensor(sensorData: SensorData) {
         }
     }
 
-    function togglePlacementMode() {
-    isPlacingMode = !isPlacingMode;
-    editMode = isPlacingMode;
-    
-    if (isPlacingMode) {
-        canvas.addEventListener('click', onPlacementClick);
-        canvas.addEventListener('mousemove', onMouseMove);
-    } else {
-        canvas.removeEventListener('click', onPlacementClick);
-        canvas.removeEventListener('mousemove', onMouseMove);
-        selectedSensor = null;
-    }
-    
-    if (placementPlane) {
-        placementPlane.visible = isPlacingMode;
-    }
-}
-
     function onSensorSelect(sensorId: string | null) {
         selectedSensor = sensorId;
         updateSensorVisuals();
@@ -584,7 +571,84 @@ async function removeSensor(sensorData: SensorData) {
         currentFloor = floorId;
         loadFloorModel(floorId);
     }
-    // Initialisation
+
+    // Gestion du modèle 3D
+    function loadFloorModel(floorId: number) {
+        const floor = floors.find(f => f.id === floorId);
+        if (!floor) return;
+
+        loading = true;
+        error = '';
+
+        if (currentModel) {
+            scene.remove(currentModel);
+            currentModel.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(material => material.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                }
+            });
+            currentModel = null;
+        }
+
+        const loader = new GLTFLoader();
+        loader.load(
+            floor.model,
+            (gltf) => {
+                currentModel = gltf.scene;
+                
+                currentModel.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        child.material = new THREE.MeshPhongMaterial({
+                            color: 0xcccccc,
+                            shininess: 10,
+                            flatShading: false,
+                            side: THREE.DoubleSide,
+                        });
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+
+                scene.add(currentModel);
+
+                const box = new THREE.Box3().setFromObject(currentModel);
+                const center = box.getCenter(new THREE.Vector3());
+                controls.target.copy(center);
+                camera.lookAt(center);
+
+                const savedPosition = loadCameraPosition();
+                if (savedPosition) {
+                    camera.position.set(
+                        savedPosition.position.x,
+                        savedPosition.position.y,
+                        savedPosition.position.z
+                    );
+                    controls.target.set(
+                        savedPosition.target.x,
+                        savedPosition.target.y,
+                        savedPosition.target.z
+                    );
+                    controls.update();
+                }
+
+                updateSensorVisuals();
+                loading = false;
+            },
+            undefined,
+            (err: any) => {
+                error = `Erreur de chargement: ${err.message}`;
+                loading = false;
+            }
+        );
+    }
+
     onMount(() => {
         try {
             loadFont();
@@ -650,92 +714,14 @@ async function removeSensor(sensorData: SensorData) {
             scene.clear();
         };
     });
-
-// Gestion du modèle 3D
-function loadFloorModel(floorId: number) {
-    const floor = floors.find(f => f.id === floorId);
-    if (!floor) return;
-
-    loading = true;
-    error = '';
-
-    if (currentModel) {
-        scene.remove(currentModel);
-        currentModel.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-                if (child.geometry) child.geometry.dispose();
-                if (child.material) {
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach(material => material.dispose());
-                    } else {
-                        child.material.dispose();
-                    }
-                }
-            }
-        });
-        currentModel = null;
-    }
-
-    const loader = new GLTFLoader();
-    loader.load(
-        floor.model,
-        (gltf) => {
-            currentModel = gltf.scene;
-            
-            currentModel.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    child.material = new THREE.MeshPhongMaterial({
-                        color: 0xcccccc,
-                        shininess: 10,
-                        flatShading: false,
-                        side: THREE.DoubleSide,
-                    });
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
-
-            scene.add(currentModel);
-
-            const box = new THREE.Box3().setFromObject(currentModel);
-            const center = box.getCenter(new THREE.Vector3());
-            controls.target.copy(center);
-            camera.lookAt(center);
-
-            const savedPosition = loadCameraPosition();
-            if (savedPosition) {
-                camera.position.set(
-                    savedPosition.position.x,
-                    savedPosition.position.y,
-                    savedPosition.position.z
-                );
-                controls.target.set(
-                    savedPosition.target.x,
-                    savedPosition.target.y,
-                    savedPosition.target.z
-                );
-                controls.update();
-            }
-
-            updateSensorVisuals();
-            loading = false;
-        },
-        undefined,
-        (err: any) => {
-            error = `Erreur de chargement: ${err.message}`;
-            loading = false;
-        }
-    );
-}
-
 </script>
-<!-- Template -->
+
 <div class="relative w-full h-screen bg-gray-100">
-    <!-- Header -->
+    <!-- Header avec menu déroulant sur mobile -->
     <header class="fixed top-0 left-0 right-0 bg-white z-50 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="py-4 flex items-center justify-between">
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-4 w-full">
                     <button
                         on:click={() => goto('/')}
                         class="p-2 rounded-full hover:bg-gray-100 transition-colors"
@@ -745,17 +731,28 @@ function loadFloorModel(floorId: number) {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                         </svg>
                     </button>
-                    <div>
+                    <div class="flex-grow">
                         <h1 class="text-xl font-bold text-gray-900 sm:text-2xl">Vue 3D</h1>
-                        <p class="mt-1 text-sm text-gray-600">{floors[currentFloor + 1]?.name || ''}</p>
+                        <!-- Menu déroulant sur mobile, liste sur desktop -->
+                        <div class="block sm:hidden mt-2 max-w-[200px]">
+                            <select
+                                class="w-full p-2 border rounded-md text-sm bg-white"
+                                value={currentFloor}
+                                on:change={(e) => changeFloor(parseInt((e.target as HTMLSelectElement).value))}
+                            >
+                                {#each floors as floor}
+                                    <option value={floor.id}>{floor.name}</option>
+                                {/each}
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Sélecteur d'étage -->
-    <div class="fixed top-24 left-4 z-10 bg-white p-4 rounded-lg shadow-lg sm:block {showControls ? '' : 'hidden'}">
+    <!-- Liste d'étages sur desktop uniquement -->
+    <div class="fixed top-24 left-4 z-10 bg-white p-4 rounded-lg shadow-lg hidden sm:block {showControls ? '' : 'hidden'}">
         <h2 class="text-lg font-bold mb-4">Étages</h2>
         <div class="flex flex-col space-y-2">
             {#each floors as floor}
@@ -772,8 +769,9 @@ function loadFloorModel(floorId: number) {
         </div>
     </div>
 
-    <!-- Interface mobile de placement -->
+    <!-- Interface de placement (masquée sur mobile) -->
     <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-20 w-full max-w-sm px-4
+                hidden sm:block
                 {showControls ? 'translate-y-0' : 'translate-y-full'} 
                 transition-transform duration-300 ease-in-out">
         <div class="bg-white rounded-lg shadow-lg p-4">
@@ -836,7 +834,6 @@ function loadFloorModel(floorId: number) {
     {/if}
 
     <!-- Canvas Three.js -->
-    <!-- svelte-ignore element_invalid_self_closing_tag -->
     <canvas bind:this={canvas} class="w-full h-full touch-none"/>
 
     <!-- Modal d'information du capteur -->
@@ -847,7 +844,6 @@ function loadFloorModel(floorId: number) {
                 <h3 class="text-lg font-bold">
                     {selectedSensorInfo.roomName}
                 </h3>
-                <!-- svelte-ignore a11y_consider_explicit_label -->
                 <button 
                     class="text-gray-400 hover:text-gray-600 transition-colors"
                     on:click={() => showSensorInfo = false}
@@ -895,24 +891,24 @@ function loadFloorModel(floorId: number) {
     {/if}
 
     <!-- Légende -->
-    <div class="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg {showControls ? '' : 'hidden'}">
-        <h3 class="font-bold mb-2">Légende</h3>
-        <div class="space-y-2">
-            <div class="flex items-center">
-                <span class="w-4 h-4 rounded-full bg-red-500 mr-2"></span>
-                <span class="text-sm">CO₂ élevé (&gt;1000 ppm)</span>
+    <div class="fixed bottom-4 right-4 bg-white p-3 rounded-lg shadow-lg {showControls ? '' : 'hidden'}">
+        <h3 class="font-bold mb-2 text-sm">Légende</h3>
+        <div class="space-y-1.5"> <!-- Réduction de l'espacement -->
+            <div class="flex items-center bg-white bg-opacity-90 rounded p-1"> <!-- Ajout de background et padding -->
+                <span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
+                <span class="text-xs font-medium">CO₂ élevé (>1000 ppm)</span>
             </div>
-            <div class="flex items-center">
-                <span class="w-4 h-4 rounded-full bg-red-300 mr-2"></span>
-                <span class="text-sm">Température élevée (&gt;26°C)</span>
+            <div class="flex items-center bg-white bg-opacity-90 rounded p-1">
+                <span class="w-3 h-3 rounded-full bg-red-300 mr-2"></span>
+                <span class="text-xs font-medium">Température élevée (>26°C)</span>
             </div>
-            <div class="flex items-center">
-                <span class="w-4 h-4 rounded-full bg-blue-500 mr-2"></span>
-                <span class="text-sm">Température basse (&lt;18°C)</span>
+            <div class="flex items-center bg-white bg-opacity-90 rounded p-1">
+                <span class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>
+                <span class="text-xs font-medium">Température basse (&lt;18°C)</span>
             </div>
-            <div class="flex items-center">
-                <span class="w-4 h-4 rounded-full bg-green-500 mr-2"></span>
-                <span class="text-sm">Conditions normales</span>
+            <div class="flex items-center bg-white bg-opacity-90 rounded p-1">
+                <span class="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
+                <span class="text-xs font-medium">Conditions normales</span>
             </div>
         </div>
     </div>
