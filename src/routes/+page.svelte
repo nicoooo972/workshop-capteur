@@ -164,38 +164,51 @@
 
     // Initialisation des données
     onMount(() => {
-        const campusRef = ref(db, 'dcCampus');
-        
-        const unsubscribe = onValue(campusRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                rooms = Object.entries(data)
-                    .map(([key, value]: [string, any]) => {
-                        const latestData = Object.values(value || {})[0] || {};
-                        const [floorNumber] = key.split('_');
-                        const floor = parseInt(floorNumber);
-                        
-                        return {
-                            id: key,
-                            name: getRoomName(key),
-                            lastUpdate: latestData.date,
-                            status: getRoomStatus(latestData.date),
-                            location: 'Digital Campus',
-                            floor,
-                            isEditing: false,
-                            temperature: latestData.temperature,
-                            humidity: latestData.humidity,
-                            co2: latestData.co2,
-                            timestamp: latestData.date
-                        };
-                    })
-                    .filter(room => room !== null);
-            }
-            loading = false;
-        });
+    const campusRef = ref(db, 'dcCampus');
+    
+    const unsubscribe = onValue(campusRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            rooms = Object.entries(data)
+                .map(([key, value]: [string, any]) => {
+                    // Récupérer toutes les entrées pour cette salle
+                    const entries = Object.entries(value || {});
+                    
+                    // Trier les entrées par date (du plus récent au plus ancien)
+                    const sortedEntries = entries.sort(([, a]: [string, any], [, b]: [string, any]) => {
+                        const dateA = a.date ? (typeof a.date === 'string' ? new Date(a.date).getTime() : a.date) : 0;
+                        const dateB = b.date ? (typeof b.date === 'string' ? new Date(b.date).getTime() : b.date) : 0;
+                        return dateB - dateA;
+                    });
 
-        return () => unsubscribe();
+                    // Prendre la dernière entrée
+                    const latestData = sortedEntries[0]?.[1] || {};
+                    const [floorNumber] = key.split('_');
+                    const floor = parseInt(floorNumber);
+                    
+                    return {
+                        id: key,
+                        name: getRoomName(key),
+                        lastUpdate: latestData.date,
+                        status: getRoomStatus(latestData.date),
+                        location: 'Digital Campus',
+                        floor,
+                        isEditing: false,
+                        temperature: latestData.temperature,
+                        humidity: latestData.humidity,
+                        co2: latestData.co2,
+                        timestamp: latestData.date
+                    };
+                })
+                .filter(room => room !== null);
+
+            console.log('Données formatées avec dernières valeurs:', rooms);
+        }
+        loading = false;
     });
+
+    return () => unsubscribe();
+});
 
 </script>
 
