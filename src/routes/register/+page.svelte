@@ -9,13 +9,10 @@
   async function handleRegister() {
     try {
       const { token, user } = await authService.register(email, password, {
-        // autres données utilisateur
       });
       
-      // Stocker le token dans localStorage ou autre
       localStorage.setItem('token', token);
       
-      // Rediriger vers la page d'accueil
       goto('/');
     } catch (err: any) {
       error = err.message;

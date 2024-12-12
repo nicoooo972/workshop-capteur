@@ -1,4 +1,3 @@
-// utils/password.ts
 import * as bcrypt from 'bcryptjs';
 
 export const hashPassword = async (password: string): Promise<string> => {

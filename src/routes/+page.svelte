@@ -4,6 +4,8 @@
     import { db } from '$lib/firebase';
     import { goto } from '$app/navigation';
     import Header from './Header.svelte';
+
+    
    
     type RoomInfo = {
         id: string;
