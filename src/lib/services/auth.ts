@@ -1,5 +1,7 @@
 // $lib/services/auth.ts
 import { browser } from '$app/environment';
+import { goto } from '$app/navigation';
+import { auth } from '$lib/stores/auth';
 
 interface User {
     id: string;
@@ -93,22 +95,34 @@ export const authService = {
 
     async logout(): Promise<void> {
         try {
-            if (browser) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-            }
-
-            // Optionnel : notifier le serveur pour invalider le token
-            await fetch('/api/auth/logout', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${this.getToken()}`
-                }
-            });
+            await fetch('/api/auth/logout', { method: 'POST' });
+            auth.logout();
+            goto('/');
         } catch (error) {
-            console.error('Erreur lors de la déconnexion:', error);
+            console.error('Erreur de déconnexion:', error);
         }
     },
+
+
+    async checkAuth(): Promise<boolean> {
+        try {
+            const response = await fetch('/api/auth/verify');
+            const data = await response.json();
+            
+            if (data.authenticated && data.user) {
+                auth.login(data.user);
+                return true;
+            } else {
+                auth.logout();
+                return false;
+            }
+        } catch (error) {
+            console.error('Erreur de vérification auth:', error);
+            auth.logout();
+            return false;
+        }
+    },
+    
 
     getToken(): string | null {
         if (browser) {

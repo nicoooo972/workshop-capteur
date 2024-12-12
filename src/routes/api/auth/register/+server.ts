@@ -1,11 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/firebase';
-import { ref, push, get, query, orderByChild, equalTo } from 'firebase/database';
+import { ref, push, get, query, orderByChild, equalTo, set } from 'firebase/database';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = 'votre_secret_jwt'; // À mettre dans .env
+import { JWT_SECRET } from '$env/static/private';
 
 
 export const POST: RequestHandler = async ({ request, cookies }) => {

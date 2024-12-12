@@ -1,6 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '$env/static/private';
+
 
 export const GET: RequestHandler = async ({ cookies }) => {
     try {

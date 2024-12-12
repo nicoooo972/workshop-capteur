@@ -6,6 +6,7 @@
     import NotificationPanel from '$lib/components/NotificationPanel.svelte';
     import { auth } from '$lib/stores/auth';
     import AuthModal from '$lib/components/AuthModal.svelte';
+	import { authService } from '$lib/services/auth';
     
     export let title: string;
     export let subtitle: string = '';
@@ -36,12 +37,8 @@
         showProfileMenu = false;
     }
 
-    function handleLogout() {
-        auth.logout();
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        showProfileMenu = false;
-        goto('/');
+    async function handleLogout() {
+        await authService.logout();
     }
 
     function openAuthModal() {

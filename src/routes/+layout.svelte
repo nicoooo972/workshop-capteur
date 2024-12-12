@@ -2,7 +2,7 @@
     import { onMount, onDestroy } from 'svelte';
     import { sensors } from '$lib/stores/sensors';
     import '../app.css';
-    import { auth } from '$lib/stores/auth';
+     import { auth } from '$lib/stores/auth';
     import { authService } from '$lib/services/auth';
 
 
