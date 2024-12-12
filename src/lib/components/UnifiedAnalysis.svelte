@@ -14,9 +14,66 @@
         { id: 'humidity', label: '💧 Humidité', unit: '%' },
         { id: 'co2', label: '📊 CO2', unit: 'ppm' }
     ];
+
+    function ensureTimestamp(date: number | string): number {
+        // Si c'est déjà un timestamp
+        if (typeof date === 'number') {
+            return date;
+        }
+        
+        // Si c'est une chaîne formatée
+        if (typeof date === 'string') {
+            // Log pour debug
+            console.log('Date string reçue:', date);
+            
+            // Si la date est au format "YYYY-MM-DD HH:mm:ss"
+            if (date.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+                const [datePart, timePart] = date.split(' ');
+                const [year, month, day] = datePart.split('-').map(Number);
+                const [hours, minutes, seconds] = timePart.split(':').map(Number);
+                const timestamp = new Date(year, month - 1, day, hours, minutes, seconds).getTime();
+                console.log('Timestamp converti:', timestamp);
+                return timestamp;
+            }
+
+            // Essayer la conversion directe
+            const timestamp = Date.parse(date);
+            if (!isNaN(timestamp)) {
+                return timestamp;
+            }
+        }
+        
+        // En cas d'échec, retourner la date actuelle
+        console.warn('Date invalide, utilisation de la date actuelle:', date);
+        return Date.now();
+    }
+
+    // Log des données pour debug
+    $: {
+        if (data.length > 0) {
+            console.log('Échantillon de données:', data[0]);
+        }
+    }
     
-    // Tri chronologique des données
-    $: sortedData = [...data].sort((a, b) => a.timestamp - b.timestamp);
+    // Tri chronologique des données avec gestion des dates
+    $: sortedData = [...data]
+        .filter(item => item && item.timestamp)
+        .map(item => {
+            const timestamp = ensureTimestamp(item.timestamp);
+            return {
+                ...item,
+                originalTimestamp: item.timestamp,
+                timestamp
+            };
+        })
+        .sort((a, b) => a.timestamp - b.timestamp);
+
+    // Log des données triées pour debug
+    $: {
+        if (sortedData.length > 0) {
+            console.log('Premier élément trié:', sortedData[0]);
+        }
+    }
 
     // Calcul des statistiques par période pour la métrique sélectionnée
     $: timeStats = (() => {
@@ -74,7 +131,7 @@
 
         values.forEach(value => {
             const bucketIndex = Math.min(Math.floor((value - min) / bucketSize), 11);
-            buckets[bucketIndex].count++;
+            if (bucketIndex >= 0) buckets[bucketIndex].count++;
         });
 
         return buckets;
@@ -82,6 +139,15 @@
 
     function getMetricUnit(metricId: string): string {
         return metrics.find(m => m.id === metricId)?.unit || '';
+    }
+
+    function formatDate(timestamp: number): string {
+        return new Date(timestamp).toLocaleString('fr-FR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            day: 'numeric',
+            month: 'numeric'
+        });
     }
 
     function updateChart() {
@@ -96,7 +162,7 @@
         switch (selectedView) {
             case 'evolution':
                 chartData = {
-                    labels: sortedData.map(d => new Date(d.timestamp).toLocaleString()),
+                    labels: sortedData.map(d => formatDate(d.timestamp)),
                     datasets: [{
                         label: metrics.find(m => m.id === selectedMetric)?.label,
                         data: sortedData.map(d => d[selectedMetric]),
@@ -114,6 +180,12 @@
                         }
                     },
                     scales: {
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
                         y: {
                             title: {
                                 display: true,
@@ -188,20 +260,21 @@
 
         const ctx = canvas.getContext('2d');
         chart = new Chart(ctx, {
-            type: selectedView === 'hourly' ? 'bar' : selectedView === 'distribution' ? 'bar' : 'line',
+            type: selectedView === 'evolution' ? 'line' : 'bar',
             data: chartData,
             options: chartOptions
         });
     }
 
     $: {
-        if (canvas && sortedData) {
+        if (canvas && sortedData.length > 0) {
+            console.log('Mise à jour du graphique avec', sortedData.length, 'points de données');
             updateChart();
         }
     }
 
     onMount(() => {
-        if (canvas && sortedData) {
+        if (canvas && sortedData.length > 0) {
             updateChart();
         }
         return () => {

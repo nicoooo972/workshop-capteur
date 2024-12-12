@@ -17,13 +17,13 @@
   import type { PageData } from './$types';
 
 
-  type SensorData = {
-      co2: number;
-      humidity: number;
-      temperature: number;
-      timestamp: number;
-      title: string;
-  };
+  interface SensorData {
+        co2: number;
+        humidity: number;
+        temperature: number;
+        date: string | number;
+        title: string;
+    }
 
   type Alert = {
       id: string;
@@ -259,36 +259,44 @@ ${filteredData.map(row => `
   }
 
   // Initialisation
- onMount(async () => {
-    if (!roomId) return;
-    
-    console.log('Connecting to room:', roomId); // Debug
-
-    const roomRef = ref(db, `dcCampus/${roomId}`); // Chemin corrigé pour matcher votre structure
-    const unsubscribe = onValue(roomRef, (snapshot) => {
-        const data = snapshot.val();
-        console.log('Firebase data:', data); // Debug
+  onMount(() => {
+        if (!data.roomId) return;
         
-        if (data) {
-            roomData = Object.entries(data).map(([key, value]: [string, any]) => ({
-                ...value,
-                co2: value.co2,
-                humidity: value.humidity,
-                temperature: value.temperature,
-                timestamp: value.date, // Changé pour matcher votre structure
-                title: value.title
-            })).sort((a, b) => b.timestamp - a.timestamp);
-        } else {
-            roomData = [];
-        }
-        isLoading = false;
-    }, (error) => {
-        console.error('Firebase error:', error);
-        isLoading = false;
-    });
+        console.log('Room ID:', data.roomId);
+        const roomRef = ref(db, `dcCampus/${data.roomId}`);
+        
+        const unsubscribe = onValue(roomRef, (snapshot) => {
+            const firebaseData = snapshot.val();
+            console.log('Données brutes Firebase:', firebaseData);
 
-    return () => unsubscribe();
-  }); 
+            if (firebaseData) {
+                // Convertir l'objet en tableau et formater les données
+                roomData = Object.entries(firebaseData)
+                    .filter(([key, value]: [string, any]) => {
+                        // Filtrer les entrées valides
+                        return value && value.co2 && value.temperature && value.humidity && value.date;
+                    })
+                    .map(([key, value]: [string, any]) => ({
+                        co2: Number(value.co2),
+                        temperature: Number(value.temperature),
+                        humidity: Number(value.humidity),
+                        date: value.date,
+                        timestamp: typeof value.date === 'string' 
+                            ? new Date(value.date).getTime()
+                            : value.date
+                    }));
+
+                console.log('Données formatées:', roomData);
+            }
+            
+            isLoading = false;
+        }, (error) => {
+            console.error('Erreur Firebase:', error);
+            isLoading = false;
+        });
+
+        return () => unsubscribe();
+    });
 </script>
 
 <svelte:head>
@@ -303,15 +311,15 @@ ${filteredData.map(row => `
   />
 
   <main class="pt-32 pb-8 px-4 sm:px-6 lg:px-8">
-      <div class="max-w-7xl mx-auto space-y-8">
-          {#if isLoading}
-              <div class="flex justify-center items-center min-h-[400px]">
-                  <div class="animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
-              </div>
-          {:else if !latestData}
-              <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-                  <p class="text-yellow-700">Aucune donnée disponible pour cette salle.</p>
-              </div>
+    <div class="max-w-7xl mx-auto space-y-8">
+        {#if isLoading}
+            <div class="flex justify-center items-center min-h-[400px]">
+                <div class="animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+            </div>
+        {:else if !roomData.length}
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                <p class="text-yellow-700">Aucune donnée disponible pour cette salle.</p>
+            </div>
           {:else}
               <!-- En-tête avec actions -->
               <div class="flex justify-between items-start">
