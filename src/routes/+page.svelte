@@ -45,9 +45,14 @@
         localStorage.setItem(CACHE_KEY, JSON.stringify(customNames));
     }
 
-    function getRoomName(roomId: string, defaultName: string): string {
-        const customNames = getCustomNamesFromCache();
-        return customNames[roomId] || defaultName;
+    function formatRoomName(roomId: string): string {
+        const [floor, roomNumber] = roomId.split('_');
+        return `${formatFloorName(parseInt(floor))} - Salle ${roomNumber}`;
+    }
+
+    function getRoomName(roomId: string): string {
+        const formattedName = formatRoomName(roomId);
+        return formattedName;
     }
 
     // Configuration des étages
@@ -167,12 +172,12 @@
                 rooms = Object.entries(data)
                     .map(([key, value]: [string, any]) => {
                         const latestData = Object.values(value || {})[0] || {};
-                        const floor = parseInt(key.split('_')[1]) || 0;
-                        const defaultName = `Salle ${key.split('_').pop()}`;
+                        const [floorNumber] = key.split('_');
+                        const floor = parseInt(floorNumber);
                         
                         return {
                             id: key,
-                            name: getRoomName(key, defaultName),
+                            name: getRoomName(key),
                             lastUpdate: latestData.date,
                             status: getRoomStatus(latestData.date),
                             location: 'Digital Campus',
@@ -191,6 +196,7 @@
 
         return () => unsubscribe();
     });
+
 </script>
 
 <svelte:head>
@@ -202,7 +208,6 @@
 <div class="min-h-screen bg-gray-50">
     <Header 
         title="Monitoring des Salles"
-        subtitle="Surveillance en temps réel des capteurs"
         showView3D={true}
     />
 
@@ -370,7 +375,6 @@
                                             </svg>
                                             <span>{formatFloorName(room.floor)} - {room.location}</span>
                                         </div>
-
                                         <div class="flex items-center text-xs sm:text-sm text-gray-500">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
