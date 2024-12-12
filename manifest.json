@@ -1,0 +1,7 @@
+{
+  "name": "DC Graph",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "short_name": "DCG",
+  "description": "Application pour afficher des données mesurés de l'école digital campus"
+}
