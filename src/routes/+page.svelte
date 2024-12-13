@@ -31,10 +31,11 @@
 
     // Configuration des seuils
     const thresholds = {
-        co2: [400, 1000],        // ppm
-        temperature: [18, 26],    // °C
-        humidity: [40, 60]        // %
+      co2: [400, 800],        // ppm
+      temperature: [19, 22],    // °C
+      humidity: [40, 60]        // %
     };
+  
 
     // Gestion du cache des noms personnalisés
     function getCustomNamesFromCache(): Record<string, string> {
