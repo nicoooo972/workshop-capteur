@@ -2,11 +2,27 @@
 <html lang="fr">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    
+    <!-- PWA Meta Tags -->
     <link rel="manifest" href="%sveltekit.assets%/manifest.json" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="Application pour afficher des données mesurées de l'école Digital Campus" />
+    
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DC Graph">
     <link rel="apple-touch-icon" href="%sveltekit.assets%/icons/icon-192x192.png" />
+    
+    <!-- Android Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="DC Graph">
+    
+    <!-- Microsoft Meta Tags -->
+    <meta name="msapplication-TileColor" content="#000000">
+    <meta name="msapplication-navbutton-color" content="#000000">
+    
     %sveltekit.head%
 </head>
 <body data-sveltekit-preload-data="hover">

@@ -4,5 +4,14 @@
   "background_color": "#000000",
   "short_name": "DCG",
   "description": "Application pour afficher des données mesurés de l'école digital campus",
-  "start_url": "/"
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "favicon",
+      "sizes": "123092x5000",
+      "type": "image/png"
+    }
+]
 }
