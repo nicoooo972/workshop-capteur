@@ -8,7 +8,7 @@
     import type { Recommendation, RoomInfo } from '$lib/types';
 	import { analyzeConditions } from '$lib/recommendations';
     import RecommendationDialog from '$lib/components/RecommendationDialog.svelte';
-
+    import { fetchTempoDays, type TempoDay } from '$lib/services/tempo';
 
     let rooms: RoomInfo[] = [];
     let weather: Weather | null = null;
@@ -82,11 +82,31 @@
         return { score, color: 'bg-red-500', message: 'Amélioration possible' };
     }
 
+    let tempoDays: { today: TempoDay; tomorrow: TempoDay } | null = null;
+
+    function getTempoColor(code: 0 | 1 | 2 | 3): { bg: string; text: string; label: string } {
+        switch (code) {
+            case 1: return { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Bleu' };
+            case 2: return { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Blanc' };
+            case 3: return { bg: 'bg-red-100', text: 'text-red-800', label: 'Rouge' };
+            default: return { bg: 'bg-gray-50', text: 'text-gray-600', label: 'Inconnu' };
+        }
+    }
+
+    function getTempoRecommendation(code: 0 | 1 | 2 | 3): string {
+        switch (code) {
+            case 1: return "Tarif avantageux : idéal pour la consommation électrique";
+            case 2: return "Tarif standard : consommation normale conseillée";
+            case 3: return "Tarif élevé : réduire la consommation électrique au minimum";
+            default: return "Tarif non communiqué";
+        }
+    }
+
     onMount(async () => {
         try {
             // Charger les données météo
             weather = await fetchWeather();
-
+            tempoDays = await fetchTempoDays();
             // Charger les données des salles
             const roomsRef = ref(db, 'dcCampus');
             onValue(roomsRef, (snapshot) => {
@@ -241,6 +261,57 @@
                     {/each}
                 </div>
             {/if}
+            {#if tempoDays}
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Tarification EDF Tempo</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Aujourd'hui -->
+            <div class="p-4 rounded-lg border border-gray-200">
+                <h4 class="text-sm font-medium text-gray-600 mb-2">Aujourd'hui</h4>
+                <div class="flex items-center justify-between">
+                    <div class={`px-3 py-1 rounded-full ${getTempoColor(tempoDays.today.codeJour).bg} ${getTempoColor(tempoDays.today.codeJour).text}`}>
+                        Jour {getTempoColor(tempoDays.today.codeJour).label}
+                    </div>
+                    <p class="text-sm text-gray-600">{getTempoRecommendation(tempoDays.today.codeJour)}</p>
+                </div>
+            </div>
+            
+            <!-- Demain -->
+            <div class="p-4 rounded-lg border border-gray-200">
+                <h4 class="text-sm font-medium text-gray-600 mb-2">Demain</h4>
+                <div class="flex items-center justify-between">
+                    <div class={`px-3 py-1 rounded-full ${getTempoColor(tempoDays.tomorrow.codeJour).bg} ${getTempoColor(tempoDays.tomorrow.codeJour).text}`}>
+                        Jour {getTempoColor(tempoDays.tomorrow.codeJour).label}
+                    </div>
+                    <p class="text-sm text-gray-600">{getTempoRecommendation(tempoDays.tomorrow.codeJour)}</p>
+                </div>
+            </div>
+        </div>
+        <div class="mt-6 border-t border-gray-200 pt-4">
+            <h4 class="text-sm font-medium text-gray-900 mb-2">À propos de l'option Tempo</h4>
+            <p class="text-sm text-gray-600 mb-3">
+                L'option Tempo d'EDF propose des tarifs d'électricité qui varient selon les jours de l'année. 
+                L'année est composée de :
+            </p>
+            <ul class="text-sm text-gray-600 mb-4 space-y-1 list-disc list-inside">
+                <li>300 jours Bleus (tarif avantageux)</li>
+                <li>43 jours Blancs (tarif moyen)</li>
+                <li>22 jours Rouges (tarif plus élevé)</li>
+            </ul>
+            <p class="text-sm text-gray-600">
+                Pour en savoir plus sur l'option Tempo et ses avantages, consultez 
+                <a 
+                    href="https://particulier.edf.fr/fr/accueil/gestion-contrat/options/tempo.html#/" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    class="text-indigo-600 hover:text-indigo-800 underline"
+                >
+                    la page dédiée sur le site d'EDF
+                </a>.
+            </p>
+        </div>
+    </div>
+{/if}
         </div>
     </main>
 </div>
