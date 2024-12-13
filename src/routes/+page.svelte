@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { onValue, ref, update } from 'firebase/database';
-    import { db } from '$lib/firebase';
+    import { onValue, ref, update, get } from 'firebase/database';    import { db } from '$lib/firebase';
     import { goto } from '$app/navigation';
     import Header from './Header.svelte';
 	import RoomComparisonChart from '$lib/components/RoomComparisonChart.svelte';
@@ -426,8 +425,8 @@
                                             </div>
                                             <!-- Nouvel indicateur pour l'impact carbone -->
                                             <div class="flex items-center gap-1">
-                                                <span class="h-2 w-2 rounded-full bg-green-500"></span>
-                                                <span class="text-xs">{room.carbonImpact ? room.carbonImpact.toFixed(2) : '-'}</span>
+                                                <span class={`h-2 w-2 rounded-full ${room.carbonImpact ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                                                <span class="text-xs">{room.carbonImpact ? room.carbonImpact.toFixed(2) : '-'} kgCO₂</span>
                                             </div>
                                         </div>
                                     </div>

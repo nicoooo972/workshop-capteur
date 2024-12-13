@@ -12,19 +12,13 @@
 } from "$lib/components/ui/dialog";
     import Header from '../Header.svelte';
     import MetricCard from '$lib/components/MetricCard.svelte';
-    import SensorChart from '$lib/components/SensorChart.svelte';
-    import AlertSystem from '$lib/components/AlertSystem.svelte';
-    import { page } from '$app/stores';
-    import { goto } from '$app/navigation';
     import { jsPDF } from 'jspdf';
     import 'jspdf-autotable';
     import UnifiedAnalysis from '$lib/components/UnifiedAnalysis.svelte';
-    import { sensors } from '$lib/stores/sensors';
     import type { PageData } from './$types';
     import RecommendationsAlert from '$lib/components/RecommendationsAlert.svelte';
-	import { Tooltip } from '$lib/components/ui/tooltip';
-	import { TooltipTrigger } from '$lib/components/ui/tooltip';
-	import { TooltipContent } from '$lib/components/ui/tooltip';
+	import { Tooltip, TooltipTrigger, TooltipContent } from '$lib/components/ui/tooltip';
+
   
     // Interfaces
     interface SensorData {
@@ -439,48 +433,49 @@
                 </div>
             {:else}
                 <!-- En-tête avec actions -->
-                <div class="flex justify-between items-start">
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2">
-                            <span class={`w-2 h-2 rounded-full ${dataIsStale ? 'bg-orange-500' : 'bg-green-500'}`}></span>
-                            <span class="text-sm text-gray-500">
-                                Dernière mise à jour : {formatDate(latestData.timestamp)}
-                            </span>
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <button
-                            class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
-                            on:click={() => showCarbonDialog = true}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M3.293 3.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                            </svg>
-                            Impact Carbone
-                        </button>
+               <!-- En-tête avec actions -->
+<div class="flex justify-between items-start">
+    <div class="space-y-1">
+        <div class="flex items-center gap-2">
+            <span class={`w-2 h-2 rounded-full ${dataIsStale ? 'bg-orange-500' : 'bg-green-500'}`}></span>
+            <span class="text-sm text-gray-500">
+                Dernière mise à jour : {formatDate(latestData.timestamp)}
+            </span>
+        </div>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+        <button
+            class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 w-full sm:w-auto"
+            on:click={() => showCarbonDialog = true}
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3.293 3.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+            <span class="hidden sm:inline">Impact</span> Carbone
+        </button>
 
-                        <button
-                            class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-                            on:click={() => showReportDialog = true}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
-                            </svg>
-                            {hasExistingReport ? 'Modifier le rapport' : 'Automatiser les rapports'}
-                        </button>
+        <button
+            class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
+            on:click={() => showReportDialog = true}
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
+            </svg>
+            <span class="hidden sm:inline">{hasExistingReport ? 'Modifier' : 'Automatiser'}</span>
+            <span class="sm:hidden">Rapport</span>
+        </button>
 
-                        <button
-                            class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
-                            on:click={() => showExportDialog = true}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" />
-                            </svg>
-                            Exporter le bilan
-                        </button>
-                    </div>
-                </div>
-
+        <button
+            class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 w-full sm:w-auto"
+            on:click={() => showExportDialog = true}
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" />
+            </svg>
+            <span class="hidden sm:inline">Exporter le</span> Bilan
+        </button>
+    </div>
+</div>
                 <!-- Cartes de métriques -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="space-y-4">
@@ -490,11 +485,6 @@
                             unit="ppm"
                             thresholds={thresholds.co2}
                             icon="📊"
-                        />
-                        <RecommendationsAlert 
-                            metric="co2"
-                            value={latestData.co2}
-                            thresholds={thresholds.co2}
                         />
                     </div>
                     
@@ -506,11 +496,6 @@
                             thresholds={thresholds.temperature}
                             icon="🌡️"
                         />
-                        <RecommendationsAlert 
-                            metric="temperature"
-                            value={latestData.temperature}
-                            thresholds={thresholds.temperature}
-                        />
                     </div>
                     
                     <div class="space-y-4">
@@ -520,11 +505,6 @@
                             unit="%"
                             thresholds={thresholds.humidity}
                             icon="💧"
-                        />
-                        <RecommendationsAlert 
-                            metric="humidity"
-                            value={latestData.humidity}
-                            thresholds={thresholds.humidity}
                         />
                     </div>
                 </div>

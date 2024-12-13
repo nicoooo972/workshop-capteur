@@ -9,7 +9,6 @@
     
     onMount(async () => {
         sensors.init();
-
         try {
             const isAuthenticated = await authService.checkAuth();
             if (!isAuthenticated) {
