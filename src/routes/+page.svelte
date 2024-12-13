@@ -238,12 +238,12 @@
         showView3D={true}
     />
 
-    <main class="pt-24 sm:pt-32 pb-8 px-3 sm:px-6 lg:px-8">
+    <main class="pt-24 sm:pt-32 pb-8">
         <div class="max-w-7xl mx-auto">
-            <!-- Filtres et recherche -->
-            <div class="sticky top-16 sm:top-20 z-10 bg-gray-50 pb-4 space-y-4 sm:space-y-6">
-                <!-- Barre de recherche responsive -->
-                <div class="relative max-w-2xl mx-auto">
+            <!-- Zone sticky complète -->
+            <div class="top-0 z-20 bg-gray-50">
+                <!-- Barre de recherche -->
+                <div class="relative max-w-2xl mx-auto px-3 sm:px-6 lg:px-8 pb-4">
                     <input
                         type="text"
                         bind:value={searchQuery}
@@ -251,7 +251,7 @@
                         class="w-full px-4 py-2 sm:py-3 pl-10 text-sm sm:text-base rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
                     />
                     <svg 
-                        class="absolute left-3 top-2.5 sm:top-3.5 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" 
+                        class="absolute left-6 sm:left-9 lg:left-11 top-2.5 sm:top-3.5 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" 
                         fill="none" 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"
@@ -265,10 +265,10 @@
                     </svg>
                 </div>
 
-                <!-- Filtres d'étage responsive -->
-                <div class="relative -left-3 sm:-left-6 lg:-left-8 w-screen">
-                    <div class="px-3 sm:px-6 lg:px-8">
-                        <div class="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide py-1.5 sm:py-2">
+                <!-- Filtres d'étage -->
+                <div class="px-3 sm:px-6 lg:px-8 pb-4">
+                    <div class="overflow-x-auto scrollbar-hide py-1.5 sm:py-2">
+                        <div class="flex gap-1.5 sm:gap-2">
                             <button
                                 class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap
                                     {selectedFloor === null ? 
@@ -295,35 +295,36 @@
             </div>
 
             <!-- Grille de salles responsive -->
-            <div class="mt-4 sm:mt-6">
-                {#if loading}
-                    <div class="flex flex-col items-center justify-center py-8 sm:py-12">
-                        <div class="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-3 sm:border-4 border-indigo-500 border-t-transparent"></div>
-                        <p class="mt-3 sm:mt-4 text-sm sm:text-base text-gray-600">Chargement des salles...</p>
-                    </div>
-                {:else if filteredRooms.length === 0}
-                    <div class="text-center py-8 sm:py-12">
-                        <svg class="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p class="mt-3 sm:mt-4 text-sm sm:text-base text-gray-600">Aucune salle ne correspond à votre recherche</p>
-                        <button
-                            class="mt-3 sm:mt-4 text-sm sm:text-base text-indigo-600 hover:text-indigo-500"
-                            on:click={() => { searchQuery = ''; selectedFloor = null; }}
-                        >
-                            Réinitialiser les filtres
-                        </button>
-                    </div>
-                {:else}
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-                        {#each filteredRooms as room (room.id)}
-                            <div
-                                class="group bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-100"
-                                class:cursor-pointer={!room.isEditing}
-                                on:click={() => !room.isEditing && navigateToRoom(room.id)}
+            <div class="px-3 sm:px-6 lg:px-8">
+                <div class="mt-4 sm:mt-6">
+                    {#if loading}
+                        <div class="flex flex-col items-center justify-center py-8 sm:py-12">
+                            <div class="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-3 sm:border-4 border-indigo-500 border-t-transparent"></div>
+                            <p class="mt-3 sm:mt-4 text-sm sm:text-base text-gray-600">Chargement des salles...</p>
+                        </div>
+                    {:else if filteredRooms.length === 0}
+                        <div class="text-center py-8 sm:py-12">
+                            <svg class="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p class="mt-3 sm:mt-4 text-sm sm:text-base text-gray-600">Aucune salle ne correspond à votre recherche</p>
+                            <button
+                                class="mt-3 sm:mt-4 text-sm sm:text-base text-indigo-600 hover:text-indigo-500"
+                                on:click={() => { searchQuery = ''; selectedFloor = null; }}
                             >
+                                Réinitialiser les filtres
+                            </button>
+                        </div>
+                    {:else}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+                            {#each filteredRooms as room (room.id)}
+                                <div
+                                    class="group bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-100"
+                                    class:cursor-pointer={!room.isEditing}
+                                    on:click={() => !room.isEditing && navigateToRoom(room.id)}
+                                >
                                 <div class="p-3 sm:p-4 lg:p-6">
-                                    <!-- En-tête de carte responsive -->
+                                    <!-- En-tête de carte -->
                                     <div class="flex items-start justify-between mb-3 sm:mb-4">
                                         <div class="flex-1 min-w-0">
                                             {#if room.isEditing}
@@ -338,7 +339,6 @@
                                                             else if (e.key === 'Escape') cancelEditing(room);
                                                         }}
                                                     />
-                                                    <!-- Boutons d'édition responsifs -->
                                                     <div class="flex gap-1">
                                                         <button
                                                             class="p-1.5 sm:p-2 text-green-600 hover:text-green-800 rounded-full hover:bg-green-50"
@@ -384,90 +384,86 @@
                                                 </div>
                                             {/if}
                                         </div>
-
-                                        <!-- Statut responsive -->
+                                        
+                                        <!-- Statut -->
                                         <div class="flex items-center ml-3 sm:ml-4">
                                             <span class={`h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full ${getStatusColor(room.status)}`}></span>
                                             <span class="ml-1.5 sm:ml-2 text-xs sm:text-sm text-gray-500 whitespace-nowrap">
                                                 {getStatusText(room.status)}
                                             </span>
                                         </div>
-                                    </div>
-
-                                    <!-- Informations de la salle responsives -->
-                                    <div class="space-y-1.5 sm:space-y-2">
-                                        <div class="flex items-center text-xs sm:text-sm text-gray-600">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                            </svg>
-                                            <span>{formatFloorName(room.floor)} - {room.location}</span>
                                         </div>
-                                        <div class="flex items-center text-xs sm:text-sm text-gray-500">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            <span>Dernière mise à jour: {formatLastUpdate(room.timestamp)}</span>
+                                        
+                                        <!-- Informations de la salle -->
+                                        <div class="space-y-1.5 sm:space-y-2">
+                                            <div class="flex items-center text-xs sm:text-sm text-gray-600">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                </svg>
+                                                <span>{formatFloorName(room.floor)} - {room.location}</span>
+                                            </div>
+                                            <div class="flex items-center text-xs sm:text-sm text-gray-500">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span>Dernière mise à jour: {formatLastUpdate(room.timestamp)}</span>
+                                            </div>
+                                        
+                                            <!-- Indicateurs -->
+                                            <div class="grid grid-cols-4 gap-2 mt-2">
+                                                <div class="flex items-center gap-1">
+                                                    <span class={`h-2 w-2 rounded-full ${room.temperature ? getMetricStatus(room.temperature, thresholds.temperature) : 'bg-gray-300'}`}></span>
+                                                    <span class="text-xs">{room.temperature?.toFixed(1)}°C</span>
+                                                </div>
+                                                <div class="flex items-center gap-1">
+                                                    <span class={`h-2 w-2 rounded-full ${room.humidity ? getMetricStatus(room.humidity, thresholds.humidity) : 'bg-gray-300'}`}></span>
+                                                    <span class="text-xs">{room.humidity?.toFixed(1)}%</span>
+                                                </div>
+                                                <div class="flex items-center gap-1">
+                                                    <span class={`h-2 w-2 rounded-full ${room.co2 ? getMetricStatus(room.co2, thresholds.co2) : 'bg-gray-300'}`}></span>
+                                                    <span class="text-xs">{room.co2?.toFixed(0)} ppm</span>
+                                                </div>
+                                                <div class="flex items-center gap-1">
+                                                    <span class={`h-2 w-2 rounded-full ${room.carbonImpact ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                                                    <span class="text-xs">{room.carbonImpact ? room.carbonImpact.toFixed(2) : '-'} kgCO₂</span>
+                                                </div>
+                                            </div>
                                         </div>
-
-                                        <!-- Indicateurs de capteurs -->
-                                        <div class="grid grid-cols-4 gap-2 mt-2">
-                                            <!-- Métriques existantes -->
-                                            <div class="flex items-center gap-1">
-                                                <span class={`h-2 w-2 rounded-full ${room.temperature ? getMetricStatus(room.temperature, thresholds.temperature) : 'bg-gray-300'}`}></span>
-                                                <span class="text-xs">{room.temperature?.toFixed(1)}°C</span>
-                                            </div>
-                                            <div class="flex items-center gap-1">
-                                                <span class={`h-2 w-2 rounded-full ${room.humidity ? getMetricStatus(room.humidity, thresholds.humidity) : 'bg-gray-300'}`}></span>
-                                                <span class="text-xs">{room.humidity?.toFixed(1)}%</span>
-                                            </div>
-                                            <div class="flex items-center gap-1">
-                                                <span class={`h-2 w-2 rounded-full ${room.co2 ? getMetricStatus(room.co2, thresholds.co2) : 'bg-gray-300'}`}></span>
-                                                <span class="text-xs">{room.co2?.toFixed(0)} ppm</span>
-                                            </div>
-                                            <!-- Nouvel indicateur pour l'impact carbone -->
-                                            <div class="flex items-center gap-1">
-                                                <span class={`h-2 w-2 rounded-full ${room.carbonImpact ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-                                                <span class="text-xs">{room.carbonImpact ? room.carbonImpact.toFixed(2) : '-'} kgCO₂</span>
-                                            </div>
+                                        
+                                        <!-- Bouton détails -->
+                                        <div class="mt-3 sm:mt-4 flex justify-end">
+                                            <button
+                                                class="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium"
+                                                on:click={(e) => {
+                                                    e.stopPropagation();
+                                                    navigateToRoom(room.id);
+                                                }}
+                                            >
+                                                <span>Voir les détails</span>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </button>
                                         </div>
-                                    </div>
-
-    
-
-                                    <!-- Bouton détails responsive -->
-                                    <div class="mt-3 sm:mt-4 flex justify-end">
-                                        <button
-    class="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium"
-    on:click={(e) => {
-        e.stopPropagation();
-        navigateToRoom(room.id);
-    }}
->
-    <span>Voir les détails</span>
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-    </svg>
-</button>
-                                    </div>
-                                </div>
-                            </div>
-                        {/each}
-                    </div>
-                {/if}
-            </div>
-
-            <div class="mt-8">
-                <RoomDashboard {rooms} />
-            </div>
-            <div class="mt-8">
-                <RoomComparisonChart {rooms} />
-            </div>
-        </div>
+                                        </div>
+                                        </div>
+                                        {/each}
+                                        </div>
+                                        {/if}
+                                        </div>
+                                        
+                                        <div class="mt-8">
+                                            <RoomDashboard {rooms} />
+                                        </div>
+                                        <div class="mt-8">
+                                            <RoomComparisonChart {rooms} />
+                                        </div>
+                                        </div>
+                                        </div>
     </main>
 </div>
 
 <style>
-    /* Cache la barre de défilement tout en préservant la fonctionnalité */
     .scrollbar-hide {
         -ms-overflow-style: none;
         scrollbar-width: none;
@@ -476,7 +472,6 @@
         display: none;
     }
 
-    /* Animation de transition pour les cartes */
     .grid > div {
         animation: fadeIn 0.3s ease-in-out;
     }
