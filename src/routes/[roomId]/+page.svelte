@@ -537,366 +537,371 @@
 
                 <!-- Dialogues -->
 
-                {#if showExportDialog}
-                <Dialog open={showExportDialog} onOpenChange={(open) => showExportDialog = open}>
-                    <DialogContent class="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Exporter les données</DialogTitle>
-                            <DialogDescription>
-                                Choisissez le format d'export de vos données
-                            </DialogDescription>
-                        </DialogHeader>
-                
-                        <div class="grid gap-4 py-4">
-                            <div class="grid grid-cols-3 gap-2">
-                                {#each ['csv', 'pdf', 'xml'] as format}
-                                    <button
-                                        class="p-4 border rounded-lg text-center transition-colors 
-                                            {exportFormat === format 
-                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
-                                                : 'hover:bg-gray-50'}"
-                                        on:click={() => exportFormat = format}
-                                    >
-                                        {format.toUpperCase()}
-                                    </button>
+                <!-- Dialog Export -->
+{#if showExportDialog}
+<Dialog open={showExportDialog} onOpenChange={(open) => showExportDialog = open}>
+    <DialogContent class="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader class="space-y-2">
+            <DialogTitle class="text-xl">Exporter les données</DialogTitle>
+            <DialogDescription class="text-sm text-gray-500">
+                Choisissez le format d'export de vos données
+            </DialogDescription>
+        </DialogHeader>
+
+        <div class="grid gap-4 py-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {#each ['csv', 'pdf', 'xml'] as format}
+                    <button
+                        class="p-4 border rounded-lg text-center transition-colors flex items-center justify-center gap-2
+                            {exportFormat === format 
+                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
+                                : 'hover:bg-gray-50'}"
+                        on:click={() => exportFormat = format}
+                    >
+                        <span class="text-lg">{format.toUpperCase()}</span>
+                    </button>
+                {/each}
+            </div>
+        </div>
+
+        <DialogFooter class="flex-col sm:flex-row gap-2 mt-4">
+            <button
+                class="w-full sm:w-auto px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                on:click={() => showExportDialog = false}
+            >
+                Annuler
+            </button>
+            <button
+                class="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                on:click={handleExport}
+            >
+                Exporter    
+            </button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
+{/if}
+
+<!-- Dialog Carbon Impact -->
+{#if showCarbonDialog}
+<Dialog open={showCarbonDialog} onOpenChange={(open) => showCarbonDialog = open}>
+    <DialogContent class="sm:max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader class="space-y-2">
+            <div class="flex items-center gap-2">
+                <DialogTitle class="text-xl">Impact Carbone</DialogTitle>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <button class="text-gray-400 hover:text-gray-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent class="max-w-xs p-4 bg-white border rounded-lg shadow-lg">
+                        <div class="space-y-2">
+                            <p class="font-medium">Méthode de calcul :</p>
+                            <ol class="text-sm space-y-1 text-gray-600">
+                                <li>1. Calcul de la moyenne de CO2 sur la période</li>
+                                <li>2. Soustraction du niveau de référence (400 ppm)</li>
+                                <li>3. Conversion : 1 ppm au-dessus de 400 = 0.1 kg CO2/jour</li>
+                                <li>4. Le résultat représente le surplus d'émissions dû à une ventilation insuffisante</li>
+                            </ol>
+                        </div>
+                    </TooltipContent>
+                </Tooltip>
+            </div>
+            <DialogDescription class="text-sm text-gray-500">
+                Calculez l'impact carbone basé sur les mesures de CO2
+            </DialogDescription>
+        </DialogHeader>
+
+        <div class="space-y-4 py-4">
+            <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
+                <p class="text-gray-600 text-sm">
+                    Le calcul de l'impact carbone est basé sur les mesures de CO2 de votre salle. 
+                    Un niveau de CO2 élevé indique une mauvaise ventilation et potentiellement 
+                    une consommation d'énergie excessive pour la climatisation.
+                </p>
+            </div>
+            
+            {#if !carbonResult}
+                <div class="space-y-4">
+                    <div class="bg-white border rounded-lg p-4">
+                        <h3 class="font-medium mb-2">Comment est calculé l'impact carbone ?</h3>
+                        <ul class="space-y-2 text-sm text-gray-600">
+                            <li>• Mesure du CO2 moyen sur la période sélectionnée</li>
+                            <li>• Calcul de l'excès par rapport au niveau de référence (400 ppm)</li>
+                            <li>• Conversion en équivalent CO2 selon les standards internationaux</li>
+                            <li>• Estimation de l'impact énergétique associé</li>
+                        </ul>
+                    </div>
+
+                    <button
+                        class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 
+                               transition-colors flex items-center justify-center gap-2"
+                        on:click={calculateAndSaveCarbonImpact}
+                        disabled={isCalculating}
+                    >
+                        {#if isCalculating}
+                            <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            <span>Calcul en cours...</span>
+                        {:else}
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                            </svg>
+                            <span>Calculer l'impact</span>
+                        {/if}
+                    </button>
+                </div>
+            {:else}
+                <div class="space-y-4">
+                    <div class="bg-green-50 border border-green-100 rounded-lg p-4">
+                        <h3 class="font-medium text-green-800 mb-2">Résultat du calcul</h3>
+                        <p class="text-2xl sm:text-3xl font-bold text-green-600">{carbonResult.toFixed(2)} kg CO2/jour</p>
+                        <div class="mt-2 space-y-2">
+                            <p class="text-sm text-green-700">
+                                Impact annuel estimé : {(carbonResult * 365).toFixed(2)} kg CO2/an
+                            </p>
+                            <p class="text-sm text-gray-600">
+                                Ce calcul est basé sur vos niveaux moyens de CO2 et représente 
+                                l'impact potentiel de votre consommation énergétique.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border rounded-lg p-4">
+                        <h3 class="font-medium mb-2">Recommandations</h3>
+                        <ul class="space-y-2 text-sm text-gray-600">
+                            <li class="flex items-start gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                                <span>Optimisez la ventilation aux heures de pointe</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                                <span>Vérifiez et entretenez régulièrement les systèmes de ventilation</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                                <span>Ajustez la climatisation en fonction de l'occupation</span>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <button
+                        class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 
+                               transition-colors flex items-center justify-center gap-2"
+                        on:click={exportToPdf}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586L7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd" />
+                        </svg>
+                        <span>Exporter en PDF</span>
+                    </button>
+                </div>
+            {/if}
+        </div>
+
+        <DialogFooter class="flex-col sm:flex-row gap-2 mt-4">
+            <button
+                class="w-full sm:w-auto px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                on:click={() => showCarbonDialog = false}
+            >
+                Fermer
+            </button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
+{/if}
+
+<!-- Dialog Report -->
+{#if showReportDialog}
+<Dialog open={showReportDialog} onOpenChange={(open) => showReportDialog = open}>
+    <DialogContent class="sm:max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader class="space-y-2">
+            <DialogTitle class="text-xl">
+                {hasExistingReport ? 'Modifier le rapport automatique' : 'Configurer un rapport automatique'}
+            </DialogTitle>
+            <DialogDescription class="text-sm text-gray-500">
+                Configurez l'envoi automatique des rapports par email
+            </DialogDescription>
+        </DialogHeader>
+
+        <div class="grid gap-6 py-4">
+            <!-- Fréquence -->
+            <div class="space-y-2">
+                <label class="text-sm font-medium">Fréquence d'envoi</label>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {#each frequencies as freq}
+                        <button
+                            class="p-3 border rounded-lg text-center transition-colors
+                                {editingReport.frequency === freq.id 
+                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
+                                    : 'hover:bg-gray-50'}"
+                            on:click={() => editingReport.frequency = freq.id}
+                        >
+                            {freq.label}
+                        </button>
+                    {/each}
+                </div>
+            </div>
+
+            <!-- Heure d'envoi -->
+            <div class="space-y-2">
+                <label class="text-sm font-medium">Heure d'envoi</label>
+                <input
+                    type="time"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm 
+                           focus:ring-indigo-500 focus:border-indigo-500"
+                    bind:value={editingReport.time}
+                />
+            </div>
+
+            <!-- Jour (si hebdomadaire ou mensuel) -->
+                        <!-- Jour (si hebdomadaire ou mensuel) -->
+                        {#if editingReport.frequency === 'weekly'}
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium">Jour de la semaine</label>
+                            <select
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm 
+                                       focus:ring-indigo-500 focus:border-indigo-500"
+                                bind:value={editingReport.day}
+                            >
+                                {#each ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] as day, i}
+                                    <option value={i}>{day}</option>
+                                {/each}
+                            </select>
+                        </div>
+                    {:else if editingReport.frequency === 'monthly'}
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium">Jour du mois</label>
+                            <select
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm 
+                                       focus:ring-indigo-500 focus:border-indigo-500"
+                                bind:value={editingReport.day}
+                            >
+                                {#each Array(31).fill(0).map((_, i) => i + 1) as day}
+                                    <option value={day}>{day}</option>
+                                {/each}
+                            </select>
+                        </div>
+                    {/if}
+        
+                    <!-- Métriques -->
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium">Métriques à inclure</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-4 bg-gray-50 rounded-lg">
+                            {#each metrics as metric}
+                                <label class="flex items-center gap-3 p-2 bg-white rounded-lg border 
+                                            cursor-pointer hover:bg-gray-50">
+                                    <input
+                                        type="checkbox"
+                                        class="w-4 h-4 rounded border-gray-300 text-indigo-600 
+                                               focus:ring-indigo-500"
+                                        checked={editingReport.metrics?.includes(metric.id)}
+                                        on:change={() => {
+                                            if (editingReport.metrics?.includes(metric.id)) {
+                                                editingReport.metrics = editingReport.metrics.filter(m => m !== metric.id);
+                                            } else {
+                                                editingReport.metrics = [...(editingReport.metrics || []), metric.id];
+                                            }
+                                        }}
+                                    />
+                                    <span class="flex items-center gap-2">
+                                        <span class="text-lg">{metric.icon}</span>
+                                        <span>{metric.label}</span>
+                                    </span>
+                                </label>
+                            {/each}
+                        </div>
+                    </div>
+        
+                    <!-- Destinataires -->
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium">Destinataires</label>
+                        <div class="space-y-4">
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <input
+                                    type="email"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm 
+                                           focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder="email@example.com"
+                                    bind:value={newEmail}
+                                    on:keydown={(e) => e.key === 'Enter' && addEmail()}
+                                />
+                                <button
+                                    class="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg 
+                                           hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                                    on:click={addEmail}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                                    </svg>
+                                    <span class="hidden sm:inline">Ajouter un destinataire</span>
+                                    <span class="sm:hidden">Ajouter</span>
+                                </button>
+                            </div>
+                            
+                            <div class="flex flex-wrap gap-2">
+                                {#each editingReport.recipients || [] as email}
+                                    <div class="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full">
+                                        <span class="text-sm">{email}</span>
+                                        <button
+                                            class="text-indigo-400 hover:text-indigo-600"
+                                            on:click={() => removeEmail(email)}
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 {/each}
                             </div>
                         </div>
-                
-                        <DialogFooter>
-                            <button
-                                class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                                on:click={() => showExportDialog = false}
-                            >
-                                Annuler
-                            </button>
-                            <button
-                                class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                                on:click={handleExport}
-                            >
-                                Exporter    
-                            </button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-                {/if}
-                
-                {#if showCarbonDialog}
-                <Dialog open={showCarbonDialog} onOpenChange={(open) => showCarbonDialog = open}>
-                    <DialogContent class="sm:max-w-2xl">
-                        <DialogHeader>
-                            <div class="flex items-center gap-2">
-                                <DialogTitle>Impact Carbone</DialogTitle>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <button class="text-gray-400 hover:text-gray-600">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                                                </svg>
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent class="max-w-xs p-4 bg-white border rounded-lg shadow-lg">
-                                            <div class="space-y-2">
-                                                <p class="font-medium">Méthode de calcul :</p>
-                                                <ol class="text-sm space-y-1 text-gray-600">
-                                                    <li>1. Calcul de la moyenne de CO2 sur la période</li>
-                                                    <li>2. Soustraction du niveau de référence (400 ppm)</li>
-                                                    <li>3. Conversion : 1 ppm au-dessus de 400 = 0.1 kg CO2/jour</li>
-                                                    <li>4. Le résultat représente le surplus d'émissions dû à une ventilation insuffisante</li>
-                                                </ol>
-                                            </div>
-                                        </TooltipContent>
-                                    </Tooltip>
-                            </div>
-                            <DialogDescription>
-                                Calculez l'impact carbone basé sur les mesures de CO2
-                            </DialogDescription>
-                        </DialogHeader>
-                
-                        <div class="space-y-4 py-4">
-                            <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
-                                <p class="text-gray-600">
-                                    Le calcul de l'impact carbone est basé sur les mesures de CO2 de votre salle. 
-                                    Un niveau de CO2 élevé indique une mauvaise ventilation et potentiellement 
-                                    une consommation d'énergie excessive pour la climatisation.
-                                </p>
-                            </div>
-                            
-                            {#if !carbonResult}
-                                <div class="space-y-4">
-                                    <div class="bg-white border rounded-lg p-4">
-                                        <h3 class="font-medium mb-2">Comment est calculé l'impact carbone ?</h3>
-                                        <ul class="space-y-2 text-sm text-gray-600">
-                                            <li>• Mesure du CO2 moyen sur la période sélectionnée</li>
-                                            <li>• Calcul de l'excès par rapport au niveau de référence (400 ppm)</li>
-                                            <li>• Conversion en équivalent CO2 selon les standards internationaux</li>
-                                            <li>• Estimation de l'impact énergétique associé</li>
-                                        </ul>
-                                    </div>
-                
-                                    <button
-                                        class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 
-                                               transition-colors flex items-center justify-center gap-2"
-                                        on:click={calculateAndSaveCarbonImpact}
-                                        disabled={isCalculating}
-                                    >
-                                        {#if isCalculating}
-                                            <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                                            Calcul en cours...
-                                        {:else}
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-                                            </svg>
-                                            Calculer l'impact
-                                        {/if}
-                                    </button>
-                                </div>
-                            {:else}
-                                <div class="space-y-4">
-                                    <div class="bg-green-50 border border-green-100 rounded-lg p-4">
-                                        <h3 class="font-medium text-green-800 mb-2">Résultat du calcul</h3>
-                                        <p class="text-3xl font-bold text-green-600">{carbonResult.toFixed(2)} kg CO2/jour</p>
-                                        <div class="mt-2 space-y-2">
-                                            <p class="text-sm text-green-700">
-                                                Impact annuel estimé : {(carbonResult * 365).toFixed(2)} kg CO2/an
-                                            </p>
-                                            <p class="text-sm text-gray-600">
-                                                Ce calcul est basé sur vos niveaux moyens de CO2 et représente 
-                                                l'impact potentiel de votre consommation énergétique.
-                                            </p>
-                                        </div>
-                                    </div>
-                
-                                    <div class="bg-white border rounded-lg p-4">
-                                        <h3 class="font-medium mb-2">Recommandations</h3>
-                                        <ul class="space-y-2 text-sm text-gray-600">
-                                            <li class="flex items-start gap-2">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                                                </svg>
-                                                <span>Optimisez la ventilation aux heures de pointe</span>
-                                            </li>
-                                            <li class="flex items-start gap-2">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                                                </svg>
-                                                <span>Vérifiez et entretenez régulièrement les systèmes de ventilation</span>
-                                            </li>
-                                            <li class="flex items-start gap-2">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                                                </svg>
-                                                <span>Ajustez la climatisation en fonction de l'occupation</span>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    
-                                    <button
-                                        class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 
-                                               transition-colors flex items-center justify-center gap-2"
-                                        on:click={exportToPdf}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586L7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd" />
-                                        </svg>
-                                        Exporter en PDF
-                                    </button>
-                                </div>
-                            {/if}
-                        </div>
-                
-                        <DialogFooter>
-                            <button
-                                class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                                on:click={() => showCarbonDialog = false}
-                            >
-                                Fermer
-                            </button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-                {/if}
-                
-                {#if showReportDialog}
-                <Dialog open={showReportDialog} onOpenChange={(open) => showReportDialog = open}>
-                    <DialogContent class="sm:max-w-3xl">
-                        <DialogHeader>
-                            <DialogTitle>
-                                {hasExistingReport ? 'Modifier le rapport automatique' : 'Configurer un rapport automatique'}
-                            </DialogTitle>
-                            <DialogDescription>
-                                Configurez l'envoi automatique des rapports par email
-                            </DialogDescription>
-                        </DialogHeader>
-                
-                        <div class="grid gap-6 py-4">
-                            <!-- Fréquence -->
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium">Fréquence d'envoi</label>
-                                <div class="grid grid-cols-3 gap-2">
-                                    {#each frequencies as freq}
-                                        <button
-                                            class="p-3 border rounded-lg text-center transition-colors
-                                                {editingReport.frequency === freq.id 
-                                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
-                                                    : 'hover:bg-gray-50'}"
-                                            on:click={() => editingReport.frequency = freq.id}
-                                        >
-                                            {freq.label}
-                                        </button>
-                                    {/each}
-                                </div>
-                            </div>
-                
-                            <!-- Heure d'envoi -->
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium">Heure d'envoi</label>
-                                <input
-                                    type="time"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm 
-                                           focus:ring-indigo-500 focus:border-indigo-500"
-                                    bind:value={editingReport.time}
-                                />
-                            </div>
-                
-                            <!-- Jour (si hebdomadaire ou mensuel) -->
-                            {#if editingReport.frequency === 'weekly'}
-                                <div class="space-y-2">
-                                    <label class="text-sm font-medium">Jour de la semaine</label>
-                                    <select
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm 
-                                               focus:ring-indigo-500 focus:border-indigo-500"
-                                        bind:value={editingReport.day}
-                                    >
-                                        {#each ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] as day, i}
-                                            <option value={i}>{day}</option>
-                                        {/each}
-                                    </select>
-                                </div>
-                            {:else if editingReport.frequency === 'monthly'}
-                                <div class="space-y-2">
-                                    <label class="text-sm font-medium">Jour du mois</label>
-                                    <select
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm 
-                                               focus:ring-indigo-500 focus:border-indigo-500"
-                                        bind:value={editingReport.day}
-                                    >
-                                        {#each Array(31).fill(0).map((_, i) => i + 1) as day}
-                                            <option value={day}>{day}</option>
-                                        {/each}
-                                    </select>
-                                </div>
-                            {/if}
-                
-                            <!-- Métriques -->
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium">Métriques à inclure</label>
-                                <div class="grid gap-2 p-4 bg-gray-50 rounded-lg">
-                                    {#each metrics as metric}
-                                        <label class="flex items-center gap-3 p-2 bg-white rounded-lg border 
-                                                    cursor-pointer hover:bg-gray-50">
-                                            <input
-                                                type="checkbox"
-                                                class="w-4 h-4 rounded border-gray-300 text-indigo-600 
-                                                       focus:ring-indigo-500"
-                                                checked={editingReport.metrics?.includes(metric.id)}
-                                                on:change={() => {
-                                                    if (editingReport.metrics?.includes(metric.id)) {
-                                                        editingReport.metrics = editingReport.metrics.filter(m => m !== metric.id);
-                                                    } else {
-                                                        editingReport.metrics = [...(editingReport.metrics || []), metric.id];
-                                                    }
-                                                }}
-                                            />
-                                            <span class="flex items-center gap-2">
-                                                <span class="text-lg">{metric.icon}</span>
-                                                <span>{metric.label}</span>
-                                            </span>
-                                        </label>
-                                    {/each}
-                                </div>
-                            </div>
-                
-                            <!-- Destinataires -->
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium">Destinataires</label>
-                                <div class="space-y-4">
-                                    <div class="flex gap-2">
-                                        <input
-                                            type="email"
-                                            class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm 
-                                                   focus:ring-indigo-500 focus:border-indigo-500"
-                                            placeholder="email@example.com"
-                                            bind:value={newEmail}
-                                            on:keydown={(e) => e.key === 'Enter' && addEmail()}
-                                        />
-                                        <button
-                                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 
-                                                   transition-colors flex items-center gap-2"
-                                            on:click={addEmail}
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                                            </svg>
-                                            Ajouter
-                                        </button>
-                                    </div>
-                                    
-                                    <div class="flex flex-wrap gap-2">
-                                        {#each editingReport.recipients || [] as email}
-                                            <div class="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full">
-                                                <span class="text-sm">{email}</span>
-                                                <button
-                                                    class="text-indigo-400 hover:text-indigo-600"
-                                                    on:click={() => removeEmail(email)}
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        {/each}
-                                    </div>
-                                </div>
-                            </div>
-                
-                            <!-- Switch actif/inactif -->
-                            <div class="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
-                                <span class="text-sm font-medium">Activer ce rapport</span>
-                                <button
-                                    class={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200
-                                        ${editingReport.enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
-                                    on:click={() => editingReport.enabled = !editingReport.enabled}
-                                >
-                                    <span
-                                        class={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200
-                                            ${editingReport.enabled ? 'translate-x-6' : 'translate-x-1'}`}
-                                    />
-                                </button>
-                            </div>
-                        </div>
-                
-                        <DialogFooter>
-                            <button
-                                class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                                on:click={() => showReportDialog = false}
-                            >
-                                Annuler
-                            </button>
-                            <button
-                                class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 
-                                       transition-colors flex items-center gap-2"
-                                on:click={saveReport}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                </svg>
-                                {hasExistingReport ? 'Mettre à jour' : 'Créer'}
-                            </button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-                {/if}
+                    </div>
+        
+                    <!-- Switch actif/inactif -->
+                    <div class="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+                        <span class="text-sm font-medium">Activer ce rapport</span>
+                        <button
+                            class={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200
+                                ${editingReport.enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                            on:click={() => editingReport.enabled = !editingReport.enabled}
+                        >
+                            <span
+                                class={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200
+                                    ${editingReport.enabled ? 'translate-x-6' : 'translate-x-1'}`}
+                            />
+                        </button>
+                    </div>
+                </div>
+        
+                <DialogFooter class="flex-col sm:flex-row gap-2 mt-4">
+                    <button
+                        class="w-full sm:w-auto px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                        on:click={() => showReportDialog = false}
+                    >
+                        Annuler
+                    </button>
+                    <button
+                        class="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 
+                               transition-colors flex items-center justify-center gap-2"
+                        on:click={saveReport}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        {hasExistingReport ? 'Mettre à jour' : 'Créer'}
+                    </button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        {/if}
 {/if}
         </div>
     </main>
