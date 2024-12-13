@@ -102,6 +102,24 @@
         }
     }
 
+
+    function formatHour(timeString: string): string {
+        return timeString.replace(':00', 'h00');
+    }
+
+
+    function getCurrentHourIndex(hourlyData: any[]): number {
+        const currentHour = new Date().getHours();
+        const index = hourlyData.findIndex(forecast => {
+            // Extrait l'heure du format "HH:00"
+            const forecastHour = parseInt(forecast.time.split(':')[0]);
+            return forecastHour > currentHour;
+        });
+        return index === -1 ? 0 : index;
+    }
+
+   
+
     onMount(async () => {
         try {
             // Charger les données météo
@@ -152,6 +170,18 @@
     $: filteredRooms = rooms.filter(room =>
         room.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    $: nextHours = weather ? weather.hourly
+        .slice(getCurrentHourIndex(weather.hourly), getCurrentHourIndex(weather.hourly) + 4)
+        : [];
+
+    $: {
+        if (weather) {
+            console.log('Weather data:', weather);
+            console.log('Next hours:', nextHours);
+        }
+    }
+
 </script>
 
 <div class="min-h-screen bg-gray-50">
@@ -183,13 +213,19 @@
                         <div class="col-span-2">
                             <h3 class="text-lg font-medium text-gray-900 mb-4">Prévisions des prochaines heures</h3>
                             <div class="grid grid-cols-4 gap-4">
-                                {#each weather.hourly.slice(1, 5) as forecast}
-                                    <div class="text-center p-3 bg-gray-50 rounded-lg">
-                                        <div class="text-sm text-gray-600">{forecast.time}</div>
-                                        <div class="text-lg font-medium text-gray-900">{forecast.temperature.toFixed(1)}°C</div>
-                                        <div class="text-sm text-gray-500">{forecast.precipitationProbability}% pluie</div>
+                                {#if nextHours.length > 0}
+                                    {#each nextHours as forecast}
+                                        <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                            <div class="text-sm text-gray-600">{formatHour(forecast.time)}</div>
+                                            <div class="text-lg font-medium text-gray-900">{forecast.temperature.toFixed(1)}°C</div>
+                                            <div class="text-sm text-gray-500">{forecast.precipitationProbability}% pluie</div>
+                                        </div>
+                                    {/each}
+                                {:else}
+                                    <div class="col-span-4 text-center text-gray-500">
+                                        Aucune prévision disponible
                                     </div>
-                                {/each}
+                                {/if}
                             </div>
                         </div>
                     </div>
