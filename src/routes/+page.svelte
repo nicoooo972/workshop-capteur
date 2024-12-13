@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { onValue, ref, update, get } from 'firebase/database';    import { db } from '$lib/firebase';
+    import { onValue, ref, update, get } from 'firebase/database';
+    import { db } from '$lib/firebase';
     import { goto } from '$app/navigation';
     import Header from './Header.svelte';
 	import RoomComparisonChart from '$lib/components/RoomComparisonChart.svelte';
