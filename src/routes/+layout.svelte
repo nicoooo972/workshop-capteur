@@ -4,6 +4,8 @@
     import '../app.css';
      import { auth } from '$lib/stores/auth';
     import { authService } from '$lib/services/auth';
+    import PWAInstall from '$lib/components/PWAInstall.svelte';
+
 
 
     
@@ -25,3 +27,4 @@
 </script>
 
 <slot />
+<PWAInstall />
