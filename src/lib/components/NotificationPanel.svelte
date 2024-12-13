@@ -9,10 +9,23 @@
     export let show = false;
     
     function formatDate(timestamp: number) {
-        return new Date(timestamp).toLocaleString('fr-FR', {
-            dateStyle: 'short',
-            timeStyle: 'short'
-        });
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+        
+        if (diffInMinutes < 60) {
+            return `Il y a ${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''}`;
+        } else if (diffInMinutes < 1440) {
+            const hours = Math.floor(diffInMinutes / 60);
+            return `Il y a ${hours} heure${hours > 1 ? 's' : ''}`;
+        } else {
+            return date.toLocaleString('fr-FR', {
+                day: 'numeric',
+                month: 'short',
+                hour: 'numeric',
+                minute: 'numeric'
+            });
+        }
     }
     
     const getIcon = (type: string) => {
@@ -23,6 +36,10 @@
             default: return '❗';
         }
     };
+
+    function deleteNotification(id: string) {
+        notifications.delete(id);
+    }
 </script>
 
 {#if show}
@@ -68,8 +85,9 @@
             {:else}
                 {#each $notifications as notification (notification.id)}
                     <div
-                        class="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                        class="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors relative group"
                         class:bg-gray-50={notification.isRead}
+                        on:click={() => notifications.markAsRead(notification.id)}
                         transition:fly={{ x: 50, duration: 200 }}
                     >
                         <div class="flex items-start gap-3">
@@ -89,6 +107,16 @@
                             <span class="shrink-0 px-2 py-1 rounded-full text-xs {notification.severity === 'critical' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">
                                 {notification.severity}
                             </span>
+                            
+                            <!-- Bouton de suppression -->
+                            <button
+                                class="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-200"
+                                on:click|stopPropagation={() => deleteNotification(notification.id)}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 {/each}

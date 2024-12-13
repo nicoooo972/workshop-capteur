@@ -4,6 +4,8 @@
     import { db } from '$lib/firebase';
     import { goto } from '$app/navigation';
     import Header from './Header.svelte';
+	import RoomComparisonChart from '$lib/components/RoomComparisonChart.svelte';
+	import RoomDashboard from '$lib/components/RoomDashboard.svelte';
 
     type RoomInfo = {
         id: string;
@@ -17,6 +19,7 @@
         humidity?: number;
         co2?: number;
         timestamp?: number;
+        carbonImpact?: number;
     };
 
     const CACHE_KEY = 'roomCustomNames';
@@ -166,43 +169,54 @@
     onMount(() => {
     const campusRef = ref(db, 'dcCampus');
     
-    const unsubscribe = onValue(campusRef, (snapshot) => {
+    const unsubscribe = onValue(campusRef, async (snapshot) => {
         const data = snapshot.val();
         if (data) {
-            rooms = Object.entries(data)
-                .map(([key, value]: [string, any]) => {
-                    // Récupérer toutes les entrées pour cette salle
-                    const entries = Object.entries(value || {});
-                    
-                    // Trier les entrées par date (du plus récent au plus ancien)
-                    const sortedEntries = entries.sort(([, a]: [string, any], [, b]: [string, any]) => {
-                        const dateA = a.date ? (typeof a.date === 'string' ? new Date(a.date).getTime() : a.date) : 0;
-                        const dateB = b.date ? (typeof b.date === 'string' ? new Date(b.date).getTime() : b.date) : 0;
-                        return dateB - dateA;
-                    });
+            const roomsPromises = Object.entries(data).map(async ([key, value]: [string, any]) => {
+                const entries = Object.entries(value || {});
+                const sortedEntries = entries.sort(([, a]: [string, any], [, b]: [string, any]) => {
+                    const dateA = a.date ? (typeof a.date === 'string' ? new Date(a.date).getTime() : a.date) : 0;
+                    const dateB = b.date ? (typeof b.date === 'string' ? new Date(b.date).getTime() : b.date) : 0;
+                    return dateB - dateA;
+                });
 
-                    // Prendre la dernière entrée
-                    const latestData = sortedEntries[0]?.[1] || {};
-                    const [floorNumber] = key.split('_');
-                    const floor = parseInt(floorNumber);
-                    
-                    return {
-                        id: key,
-                        name: getRoomName(key),
-                        lastUpdate: latestData.date,
-                        status: getRoomStatus(latestData.date),
-                        location: 'Digital Campus',
-                        floor,
-                        isEditing: false,
-                        temperature: latestData.temperature,
-                        humidity: latestData.humidity,
-                        co2: latestData.co2,
-                        timestamp: latestData.date
-                    };
-                })
-                .filter(room => room !== null);
+                const latestData = sortedEntries[0]?.[1] || {};
+                const [floorNumber] = key.split('_');
+                const floor = parseInt(floorNumber);
 
-            console.log('Données formatées avec dernières valeurs:', rooms);
+                // Récupération de l'impact carbone
+                const carbonImpactRef = ref(db, `carbonImpact/${key}`);
+                let carbonImpact;
+                
+                try {
+                    const carbonSnapshot = await get(carbonImpactRef);
+                    if (carbonSnapshot.exists()) {
+                        const carbonData = carbonSnapshot.val();
+                        const latestCarbon = Object.values(carbonData)
+                            .sort((a: any, b: any) => b.timestamp - a.timestamp)[0];
+                        carbonImpact = latestCarbon?.result;
+                    }
+                } catch (error) {
+                    console.error('Erreur lors de la récupération de l\'impact carbone:', error);
+                }
+
+                return {
+                    id: key,
+                    name: getRoomName(key),
+                    lastUpdate: latestData.date,
+                    status: getRoomStatus(latestData.date),
+                    location: 'Digital Campus',
+                    floor,
+                    isEditing: false,
+                    temperature: latestData.temperature,
+                    humidity: latestData.humidity,
+                    co2: latestData.co2,
+                    timestamp: latestData.date,
+                    carbonImpact
+                };
+            });
+
+            rooms = (await Promise.all(roomsPromises)).filter(room => room !== null);
         }
         loading = false;
     });
@@ -396,7 +410,8 @@
                                         </div>
 
                                         <!-- Indicateurs de capteurs -->
-                                        <div class="grid grid-cols-3 gap-2 mt-2">
+                                        <div class="grid grid-cols-4 gap-2 mt-2">
+                                            <!-- Métriques existantes -->
                                             <div class="flex items-center gap-1">
                                                 <span class={`h-2 w-2 rounded-full ${room.temperature ? getMetricStatus(room.temperature, thresholds.temperature) : 'bg-gray-300'}`}></span>
                                                 <span class="text-xs">{room.temperature?.toFixed(1)}°C</span>
@@ -409,8 +424,15 @@
                                                 <span class={`h-2 w-2 rounded-full ${room.co2 ? getMetricStatus(room.co2, thresholds.co2) : 'bg-gray-300'}`}></span>
                                                 <span class="text-xs">{room.co2?.toFixed(0)} ppm</span>
                                             </div>
+                                            <!-- Nouvel indicateur pour l'impact carbone -->
+                                            <div class="flex items-center gap-1">
+                                                <span class="h-2 w-2 rounded-full bg-green-500"></span>
+                                                <span class="text-xs">{room.carbonImpact ? room.carbonImpact.toFixed(2) : '-'}</span>
+                                            </div>
                                         </div>
                                     </div>
+
+    
 
                                     <!-- Bouton détails responsive -->
                                     <div class="mt-3 sm:mt-4 flex justify-end">
@@ -432,6 +454,13 @@
                         {/each}
                     </div>
                 {/if}
+            </div>
+
+            <div class="mt-8">
+                <RoomDashboard {rooms} />
+            </div>
+            <div class="mt-8">
+                <RoomComparisonChart {rooms} />
             </div>
         </div>
     </main>
